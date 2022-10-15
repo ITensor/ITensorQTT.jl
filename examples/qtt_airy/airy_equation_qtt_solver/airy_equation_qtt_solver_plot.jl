@@ -5,7 +5,7 @@ using UnicodePlots
 
 ITensors.disable_warn_order()
 
-include("airy_utils.jl")
+include("../src/airy_utils.jl")
 
 function getindex_qtt(u, I::StepRange{Int,Int})
   return [getindex_qtt(u, i) for i in I]
@@ -22,8 +22,8 @@ end
 # nss = Dict(20.0 => 10:30, 30.0 => 10:42, 40.0 => 10:48)
 
 results_dirname = "results_multigrid"
-xᶠs = [30.0]
-nss = Dict(30.0 => 10:20)
+xᶠs = [2.0, 10.0, 30.0]
+nss = Dict(2.0 => 10:20, 10.0 => 10:13, 30.0 => 10:20)
 
 # comparison = "begin"
 # comparison = "end"
@@ -100,7 +100,7 @@ for xᶠ in xᶠs
     @show xⁱ, xᶠ, h
     # @show xrange
 
-    u_vec_exact = u_exact.(xrange, α, β)
+    u_vec_exact = airy_solution.(xrange, α, β)
     u_vec_exact /= norm(u_vec_exact)
     @show u_vec_exact[1], u_vec_exact[end]
     display(lineplot(u_vec_exact))
@@ -110,10 +110,11 @@ for xᶠ in xᶠs
     @show number_of_zeros(u_vec_approx)
 
     @show norm(u_vec_exact - u_vec_approx)
+    @show norm(u_vec_exact - u_vec_approx) / length(u_vec_approx)
     @show maximum(abs, u_vec_exact - u_vec_approx)
 
     us[xᶠ][j] = u
-    norm_errors[xᶠ][j] = norm(u_vec_exact - u_vec_approx)
+    norm_errors[xᶠ][j] = norm(u_vec_exact - u_vec_approx) / length(u_vec_approx)
     max_errors[xᶠ][j] = maximum(abs, u_vec_exact - u_vec_approx)
     times[xᶠ][j] = time
   end
@@ -136,10 +137,3 @@ if !isdir(plots_dir)
   mkdir(plots_dir)
 end
 Plots.savefig(p, joinpath(plots_dir, "airy_xf_$(xᶠs)_norm_errors.png"))
-
-# xlabel = "log10(sites)"
-# display(lineplot(ns * log10(2), log10.(norm_errors); title="Norm error", xlabel, ylabel="log10(norm difference)"))
-# display(lineplot(ns * log10(2), log10.(max_errors); title="Maximum elementwise error", xlabel, ylabel="log10(maximum difference)"))
-# display(lineplot(ns * log10(2), times; title="Time", xlabel, ylabel="Time (seconds)"))
-# display(lineplot(ns * log10(2), maxlinkdim.(us); title="Time", xlabel, ylabel="Maximum rank"))
-

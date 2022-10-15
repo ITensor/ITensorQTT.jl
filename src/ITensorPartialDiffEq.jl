@@ -19,6 +19,7 @@ include("integration.jl")
 include("dmrg_target.jl")
 
 export function_to_mps,
+  qtt_xrange,
   mps_to_discrete_function,
   laplacian_mpo,
   integrate_mps,

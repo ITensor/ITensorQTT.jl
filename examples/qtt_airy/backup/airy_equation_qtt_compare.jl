@@ -49,7 +49,7 @@ for j in eachindex(ns)
   display(lineplot(u_vec_approx))
 
   xrange = [xⁱ + n * h for n in (N - 2^nbits_compare):(N - 1)]
-  u_vec_exact = u_exact.(xrange, α, β)
+  u_vec_exact = airy_solution.(xrange, α, β)
   @show u_vec_exact[1], u_vec_exact[end]
   display(lineplot(u_vec_exact))
   display(lineplot(u_vec_exact - u_vec_approx))

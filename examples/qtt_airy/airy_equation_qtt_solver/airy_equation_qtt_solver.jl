@@ -4,8 +4,8 @@ using Random
 
 ITensors.disable_warn_order()
 
-include("linsolve.jl")
-include("airy_utils.jl")
+include("../src/linsolve.jl")
+include("../src/airy_utils.jl")
 
 # Solve the Airy equation:
 #
@@ -19,7 +19,7 @@ include("airy_utils.jl")
 #
 # u(xⁱ) = uⁱ
 # u(xᶠ) = uᶠ
-function solve_airy(;
+function airy_qtt_solver(;
   n=nothing,
   s=siteinds("Qubit", n),
   xⁱ=1.0,

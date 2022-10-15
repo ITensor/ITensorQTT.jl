@@ -2,6 +2,23 @@
 # Function to MPS conversion
 #
 
+# A range of discretized x-values from `xstart` to `xstop`,
+# including `xstart` but not including `xstop`.
+# Equivalent to:
+# h = (xstop - xstart) / 2^n
+# xrange = [xstart + j * h for j in 0:(2^n - 1)]
+function qtt_xrange(n::Int, xstart, xstop)
+  return range(; start=xstart, stop=xstop, length=(2^n + 1))[1:2^n]
+end
+
+function qtt_xrange(s::Vector{<:Index}, xstart, xstop)
+  return qtt_xrange(length(s), xstart, xstop)
+end
+
+function qtt_xrange(u::MPS, xstart, xstop)
+  return qtt_xrange(length(u), xstart, xstop)
+end
+
 function function_to_mps(f::Function, s::Vector{<:Index}, xstart, xstop; alg="factorize", kwargs...)
   return function_to_mps(Algorithm(alg), f, s, xstart, xstop; kwargs...)
 end
@@ -14,7 +31,7 @@ function function_to_mps(f::Tuple{Vararg{Function}}, s::Tuple{Vararg{Vector{<:In
 end
 
 function function_to_mps(::Algorithm"factorize", f::Function, s::Vector{<:Index}, xstart, xstop; cutoff=1e-15, kwargs...)
-  x = range(; start=xstart, stop=xstop, length=(2 ^ length(s) + 1))[1:end-1]
+  x = qtt_xrange(s, xstart, xstop)
   return vec_to_mps(f.(x), s; cutoff, kwargs...)
 end
 
@@ -36,8 +53,7 @@ end
 # https://arxiv.org/abs/1802.07259
 # Approximate a function by a polynomial and then turn into an MPS
 function function_to_mps(::Algorithm"polynomial", f::Function, s::Vector{<:Index}, xstart, xstop; cutoff=1e-15, degree, length=2^(length(s)))
-  # xrange = range(; start=xstart, stop=xstop, length=(length + 1))[1:end-1]
-  xrange = range(; start=xstart, stop=xstop, length)
+  xrange = range(; start=xstart, stop=xstop, length=(length + 1))[1:length]
   # ∑{l=0…κ} cₗ xˡ, polynomial of degree κ
   c = coeffs(fit(xrange, f.(xrange), degree))
   κ = degree

@@ -5,6 +5,8 @@ using JLD2
 
 number_of_zeros(v) = count(j -> sign(v[j]) ≠ sign(v[j+1]), 1:(length(v)-1))
 
+linreg(x, y) = [fill!(similar(x), 1);; x] \ y
+
 function linsolve_error(A, x, b)
   return √(abs(inner(A, x, A, x) + inner(b, b) - 2 * real(inner(b', A, x)))) / norm(b)
 end
@@ -26,15 +28,21 @@ end
 
 q(x) = -x
 
-u_exact(x, α, β) = α * airyai(-x) + β * airybi(-x)
+airy_solution(x, α=1.0, β=0.0) = α * airyai(-x) + β * airybi(-x)
 
 function airy_mpo(s, xⁱ, xᶠ)
   s̃ = sim(s)
   n = length(s)
-  N = 2^n
-  h = (xᶠ - xⁱ) / (N - 1)
   A₁ = -laplacian_mpo(s, 1.0)
-  q_mps = function_to_mps(x -> q((xᶠ + h - xⁱ) * x + xⁱ), s̃, xⁱ, xᶠ; cutoff=1e-8, alg="polynomial", degree=1, length=1000)
+
+  # N = 2^n
+  # h = (xᶠ - xⁱ) / (N - 1)
+  # f(x) = q((xᶠ + h - xⁱ) * x + xⁱ)
+
+  h = (xᶠ - xⁱ) / 2^n
+  f(x) = q((xᶠ - xⁱ) * x + xⁱ)
+
+  q_mps = function_to_mps(f, s̃, xⁱ, xᶠ; cutoff=1e-8, alg="polynomial", degree=1, length=1000)
   A₂ = h^2 * MPO([q_mps[j] * δ(s̃[j], s[j], s[j]') for j in 1:n])
   return convert(MPO, +(A₁, A₂; alg="directsum"))
 end
@@ -43,7 +51,7 @@ function airy_system(s, xⁱ, xᶠ, α, β)
   # Normalize the coefficients
   α, β = (α, β) ./ norm((α, β))
   A = airy_mpo(s, xⁱ, xᶠ)
-  uⁱ, uᶠ = u_exact.((xⁱ, xᶠ), α, β)
+  uⁱ, uᶠ = airy_solution.((xⁱ, xᶠ), α, β)
   b = boundary_value_mps(s, uⁱ, uᶠ)
   return (; A, b)
 end
@@ -70,7 +78,7 @@ function airy_system_matrix(s, xⁱ, xᶠ, α, β)
   # Normalize the coefficients
   α, β = (α, β) ./ norm((α, β))
   A = airy_matrix(s, xⁱ, xᶠ)
-  uⁱ, uᶠ = u_exact.((xⁱ, xᶠ), α, β)
+  uⁱ, uᶠ = airy_solution.((xⁱ, xᶠ), α, β)
   b = boundary_value_vector(s, uⁱ, uᶠ)
   return (; A, b)
 end
