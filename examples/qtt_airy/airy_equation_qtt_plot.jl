@@ -22,8 +22,8 @@ end
 # nss = Dict(20.0 => 10:30, 30.0 => 10:42, 40.0 => 10:48)
 
 results_dirname = "results_multigrid"
-xᶠs = [30.0]
-nss = Dict(30.0 => 10:20)
+xᶠs = [2.0, 30.0]
+nss = Dict(2.0 => 10:20, 30.0 => 10:20)
 
 # comparison = "begin"
 # comparison = "end"
@@ -136,10 +136,3 @@ if !isdir(plots_dir)
   mkdir(plots_dir)
 end
 Plots.savefig(p, joinpath(plots_dir, "airy_xf_$(xᶠs)_norm_errors.png"))
-
-# xlabel = "log10(sites)"
-# display(lineplot(ns * log10(2), log10.(norm_errors); title="Norm error", xlabel, ylabel="log10(norm difference)"))
-# display(lineplot(ns * log10(2), log10.(max_errors); title="Maximum elementwise error", xlabel, ylabel="log10(maximum difference)"))
-# display(lineplot(ns * log10(2), times; title="Time", xlabel, ylabel="Time (seconds)"))
-# display(lineplot(ns * log10(2), maxlinkdim.(us); title="Time", xlabel, ylabel="Maximum rank"))
-
