@@ -5,7 +5,7 @@ using UnicodePlots
 
 ITensors.disable_warn_order()
 
-include("../src/airy_utils.jl")
+include("src/airy_utils.jl")
 
 function getindex_qtt(u, I::StepRange{Int,Int})
   return [getindex_qtt(u, i) for i in I]
