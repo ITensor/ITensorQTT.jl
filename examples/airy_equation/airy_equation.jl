@@ -29,10 +29,15 @@ function airy_qtt_error(n::Int, xi, xf; α=1.0, β=0.0, cutoff=1e-15)
   return (; u, u_vec_exact, α, β, cutoff, xi, xf)
 end
 
-# ns = 1:22
-# nxfs = 1:20
-# α, β = 1, 1
-# airy_qtt_compression_get_results(1:20, 1:22; α=1.0, β=1.0, results_dir="results", cutoff=1e-15)
+"""
+nxfs = 1:20 # xf in [2^1, 2^2, ..., 2^20]
+ns = 1:5 # n in [2^1, 2^2, ..., 2^22]
+α, β = 1.0, 1.0 # Boundary conditions `u(xi) = α Ai(-xi) + β Bi(-xi)`, `u(xf) = α Ai(-xf) + β Bi(-xf)`
+root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solution_compression"
+results_dir = joinpath(root_dir, "results")
+cutoff = 1e-15 # QTT/MPS compression cutoff
+airy_qtt_compression_get_results(nxfs, ns; α, β, results_dir, cutoff)
+"""
 function airy_qtt_compression_get_results(nxfs, ns; results_dir, α, β, cutoff=1e-15)
   if !isdir(results_dir)
     mkdir(results_dir)
@@ -47,10 +52,15 @@ function airy_qtt_compression_get_results(nxfs, ns; results_dir, α, β, cutoff=
   end
 end
 
-# nxfs = 1:2:11
-# ns = Dict(1 => 6:22, 3 => 6:22, 5 => 8:22, 7 => 11:22, 9 => 14:22, 11 => 17:22)
-# best_fit_points = Dict(1 => 6:16, 3 => 6:18, 5 => 8:20, 7 => 12:21, 9 => 18:22, 11 => 20:22)
-# airy_qtt_compression_plot_results(nxfs, ns; results_dir="results", plots_dir="plots", best_fit_points)
+"""
+nxfs = 1:2:11
+ns = Dict(1 => 6:22, 3 => 6:22, 5 => 8:22, 7 => 11:22, 9 => 14:22, 11 => 17:22)
+best_fit_points = Dict(1 => 6:16, 3 => 6:18, 5 => 8:20, 7 => 12:21, 9 => 18:22, 11 => 20:22)
+root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solution_compression"
+results_dir = joinpath(root_dir, "results")
+plots_dir = joinpath(root_dir, "plots")
+airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, best_fit_points)
+"""
 function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, best_fit_points=nothing)
   if !isdir(results_dir)
     error("No results directory $results_dir found")
@@ -77,13 +87,13 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
     ylabel="∫|u(x) - ũ(x)|²dx / (xf - xi)",
   )
   plot_airy_error = plot(;
-    title="Error from satisfying Airy equation",
+    title="Error satisfying discretized Airy equation, |Au⃗ - b⃗|²",
     legend=:bottomleft,
     xaxis=:log,
     yaxis=:log,
     linewidth=3,
     xlabel="Number of gridpoints",
-    ylabel="|Au⃗ - b⃗|",
+    ylabel="|Au⃗ - b⃗|²",
   )
   maxlinkdims = Float64[]
   for nxf in nxfs
@@ -113,7 +123,7 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
       xi = 1.0
       xf = 2^nxf
       (; A, b) = airy_system(siteinds(u), xi, xf, results.α, results.β)
-      push!(airy_errors, linsolve_error(A, u, b))
+      push!(airy_errors, linsolve_error(A, u, b)^2)
     end
     push!(maxlinkdims, last(maxlinkdims_nxf))
     plot!(plot_norm_error, 2 .^ ns[nxf], norm_errors;

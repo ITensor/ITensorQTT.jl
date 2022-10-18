@@ -93,7 +93,6 @@ for xᶠ in xᶠs
     @show u_vec_approx[1], u_vec_approx[end]
     display(lineplot(u_vec_approx))
 
-
     @show xrange[end]
     @show (2 * xrange[end] - xrange[end - 1]), xᶠ
 

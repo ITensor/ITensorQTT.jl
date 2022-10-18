@@ -6,8 +6,8 @@ Compress the Airy equation solution using a QTT/MPS on an interval `xi = 1.0` to
 Collect results with:
 ```julia
 include("airy_equation.jl")
-ns = 1:5 # n in [2^1, 2^2, ..., 2^22]
 nxfs = 1:20 # xf in [2^1, 2^2, ..., 2^20]
+ns = 1:5 # n in [2^1, 2^2, ..., 2^22]
 α, β = 1.0, 1.0 # Boundary conditions `u(xi) = α Ai(-xi) + β Bi(-xi)`, `u(xf) = α Ai(-xf) + β Bi(-xf)`
 root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solution_compression"
 results_dir = joinpath(root_dir, "results")

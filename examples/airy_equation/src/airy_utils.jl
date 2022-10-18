@@ -56,12 +56,15 @@ function airy_system(s, xⁱ, xᶠ, α, β)
   return (; A, b)
 end
 
+# Airy equation matrix in the region `[xi, xf) = [xi, xf - h]`.
+# [xi + j * h for j in 0:(N - 1)]
+# h = (xf - xi) / N
 function airy_matrix(s, xⁱ, xᶠ)
   n = length(s)
   N = 2^n
-  h = (xᶠ - xⁱ) / (N - 1)
+  h = (xᶠ - xⁱ) / N
   A₁ = SymTridiagonal(fill(2.0, N), fill(-1.0, N - 1))
-  A₂ = h^2 * Diagonal([q(xⁱ + n * h) for n in 0:(N - 1)])
+  A₂ = h^2 * Diagonal([-(xⁱ + j * h) for j in 0:(N - 1)])
   return A₁ + A₂
 end
 
