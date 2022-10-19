@@ -84,16 +84,16 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
     yaxis=:log,
     linewidth=3,
     xlabel="Number of gridpoints",
-    ylabel="∫|u(x) - ũ(x)|²dx / (xf - xi)",
+    ylabel="∑ᵢ|(uᵢ - ũᵢ| * h / (xf - xi)",
   )
   plot_airy_error = plot(;
-    title="Error satisfying discretized Airy equation, |Au⃗ - b⃗|²",
+    title="Error satisfying discretized Airy equation, ∑ᵢ|(Au)ᵢ - bᵢ| * h",
     legend=:bottomleft,
     xaxis=:log,
     yaxis=:log,
     linewidth=3,
     xlabel="Number of gridpoints",
-    ylabel="|Au⃗ - b⃗|²",
+    ylabel="∑ᵢ|(Au)ᵢ - bᵢ| * h",
   )
   maxlinkdims = Float64[]
   for nxf in nxfs
@@ -120,7 +120,6 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
       push!(norm_errors, u_diff_integrated)
 
       # How well does it satisfy the Airy equation?
-      xi = 1.0
       xf = 2^nxf
       (; A, b) = airy_system(siteinds(u), xi, xf, results.α, results.β)
       push!(airy_errors, linsolve_error(A, u, b)^2)

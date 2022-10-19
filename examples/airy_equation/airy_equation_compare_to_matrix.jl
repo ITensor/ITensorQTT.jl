@@ -15,10 +15,10 @@ xi, xf = 1.0, 5.0
 res = airy_compare_to_matrix.(ns; α, β, xi, xf)
 airy_err = first.(res)
 integral_err = last.(res)
-linreg(ns, log2.(airy_err)) # |Au - b|²
+linreg(ns, log2.(airy_err)) # ∫dx |A(x,x')u(x') - b(x)|
 # 2-element Vector{Float64}:
-#   1.3639973560950405
-#  -1.994014036973315
+#   0.6864681664612592
+#  -1.997374659387574
 linreg(ns, log2.(integral_err)) # ∫dx |u(x) - ũ(x)|²
 # 2-element Vector{Float64}:
 #   1.1385702262631532
@@ -61,6 +61,7 @@ function airy_compare_to_matrix(n; α, β, xi, xf)
   @show sum(abs2, u_mat - u_exact) / N
   @show sum(abs2, u_mpo - u_exact) / N
   @show norm(A_mat * u_exact - b_mat)
+  @show sum(abs, A_mat * u_exact - b_mat) / N
   @show norm(A_mat * u_mat - b_mat)
 
   @show diff(diag(A_mpo) / h^2)[1:min(N - 1, 10)]
@@ -70,5 +71,5 @@ function airy_compare_to_matrix(n; α, β, xi, xf)
 
   @assert b_mpo ≈ b_mat
   @assert A_mpo ≈ A_mat
-  return norm(A_mat * u_exact - b_mat)^2, sum(abs2, u_mat - u_exact) / N
+  return sum(abs, A_mat * u_exact - b_mat) / N, sum(abs2, u_mat - u_exact) / N
 end
