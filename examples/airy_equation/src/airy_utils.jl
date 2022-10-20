@@ -4,10 +4,6 @@ using SpecialFunctions
 using LinearAlgebra
 using JLD2
 
-## function linsolve_error(A, x, b)
-##   return √(abs(inner(A, x, A, x) + inner(b, b) - 2 * real(inner(b', A, x)))) / norm(b)
-## end
-
 airy_solution(x, α=1.0, β=0.0) = α * airyai(-x) + β * airybi(-x)
 
 function airy_mpo(s, xⁱ, xᶠ)
@@ -84,34 +80,3 @@ function airy_qtt_compression(n::Int, xi, xf; α=1.0, β=0.0, cutoff=1e-15)
 
   return (; u, u_vec_exact, α, β, cutoff, xi, xf)
 end
-
-## number_of_zeros(v) = count(j -> sign(v[j]) ≠ sign(v[j+1]), 1:(length(v)-1))
-## 
-## linreg(x, y) = [fill!(similar(x), 1);; x] \ y
-##
-## function boundary_value_mps(s, xⁱ, xᶠ)
-##   n = length(s)
-##   l = [Index(2; tags="Link,l=$(j)↔$(j+1)") for j in 1:(n - 1)]
-##   A = MPS(n)
-##   A[1] = itensor([1.0 0.0; 0.0 1.0], s[1], l[1])
-##   aⱼ = zeros(2, 2, 2)
-##   aⱼ[1, 1, 1] = 1.0
-##   aⱼ[2, 2, 2] = 1.0
-##   for j in 2:(n - 1)
-##     A[j] = ITensor(aⱼ, l[j - 1], s[j], l[j])
-##   end
-##   A[end] = itensor([xⁱ 0.0; 0.0 xᶠ], l[n - 1], s[n])
-##   return A
-## end
-##
-## function boundary_value_vector(s, uⁱ, uᶠ)
-##   n = length(s)
-##   N = 2^n
-##   b = zeros(N)
-##   b[1] = uⁱ
-##   b[N] = uᶠ
-##   return b
-## end
-##
-## q(x) = -x
-

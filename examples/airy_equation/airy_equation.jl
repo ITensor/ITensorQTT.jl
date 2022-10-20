@@ -4,30 +4,9 @@ using JLD2
 using Plots
 using Random
 
-## using ITensorPartialDiffEq: vec_to_mps
-
 ITensors.disable_warn_order()
 
-## include("src/linsolve.jl")
 include("src/airy_utils.jl")
-
-## function airy_qtt(s::Vector{<:Index}, xi, xf; α=1.0, β=0.0, cutoff=1e-15)
-##   α, β = (α, β) ./ norm((α, β))
-##   return function_to_mps(x -> airy_solution(x, α, β), s, xi, xf; cutoff)
-## end
-## 
-## function airy_qtt_compression(n::Int, xi, xf; α=1.0, β=0.0, cutoff=1e-15)
-##   α, β = (α, β) ./ norm((α, β))
-## 
-##   # Exact Airy solution from SpecialFunctions.jl
-##   xrange = qtt_xrange(n, xi, xf)
-##   u_vec_exact = airy_solution.(xrange, α, β)
-## 
-##   s = siteinds("Qubit", n)
-##   u = vec_to_mps(u_vec_exact, s; cutoff)
-## 
-##   return (; u, u_vec_exact, α, β, cutoff, xi, xf)
-## end
 
 """
 nxfs = 1:20 # xf in [2^1, 2^2, ..., 2^20]
