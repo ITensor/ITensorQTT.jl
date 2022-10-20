@@ -84,7 +84,7 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
     yaxis=:log,
     linewidth=3,
     xlabel="Number of gridpoints",
-    ylabel="∑ᵢ|(uᵢ - ũᵢ| * h / (xf - xi)",
+    ylabel="∑ᵢ|uᵢ - ũᵢ| * h / (xf - xi)",
   )
   plot_airy_error = plot(;
     title="Error satisfying discretized Airy equation, ∑ᵢ|(Au)ᵢ - bᵢ| * h",

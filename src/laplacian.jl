@@ -1,5 +1,9 @@
 #
 # Making differential operators as MPOs
+# https://arxiv.org/abs/1802.07259
+# https://en.wikipedia.org/wiki/Finite_difference_method
+# TODO: higher order discetizations
+# https://en.wikipedia.org/wiki/Finite_difference_coefficient
 #
 
 function laplacian_matrix(xlength, xstep=1.0)
