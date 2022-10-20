@@ -3,6 +3,7 @@ using ITensorPartialDiffEq
 using JLD2
 using Plots
 using Random
+using UnicodePlots
 
 ITensors.disable_warn_order()
 
@@ -19,7 +20,7 @@ airy_qtt_compression_get_results(nxfs, ns; α, β, results_dir, cutoff)
 """
 function airy_qtt_compression_get_results(nxfs, ns; results_dir, α, β, cutoff=1e-15)
   if !isdir(results_dir)
-    mkdir(results_dir)
+    mkpath(results_dir)
   end
   @time for nxf in nxfs
     @show nxf
@@ -45,7 +46,7 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
     error("No results directory $results_dir found")
   end
   if !isdir(plots_dir)
-    mkdir(plots_dir)
+    mkpath(plots_dir)
   end
   plot_maxlinkdim = plot(;
     title="Maximum QTT rank",
@@ -57,7 +58,7 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
     ylabel="Maximum QTT rank",
   )
   plot_norm_error = plot(;
-    title="Integral of difference from exact solution",
+    title="Difference from exact solution",
     legend=:bottomright,
     xaxis=:log,
     yaxis=:log,
@@ -66,7 +67,7 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
     ylabel="∑ᵢ|uᵢ - ũᵢ|²/∑ᵢ|ũᵢ|²",
   )
   plot_airy_error = plot(;
-    title="Error satisfying discretized Airy equation, ∑ᵢ|(Au)ᵢ - bᵢ|²",
+    title="Error satisfying discretized Airy equation",
     legend=:bottomleft,
     xaxis=:log,
     yaxis=:log,
@@ -93,30 +94,15 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
       u_vec_approx = mps_to_discrete_function(u)
 
       # h = (xf - xi) / 2^n
-      # ∑ᵢ |uᵢ - ũᵢ|² / 2^n
-      # Normalized by `(xf - xi)`
-
-      # u_diff_integrated = sum(abs2, u_vec_exact - u_vec_approx) / 2^n
-      # u_diff_integrated = sum(abs2, u_vec_exact - u_vec_approx) / norm(u_vec_exact)^2
-
-      @show norm(u_vec_exact)
-      @show norm(u_vec_approx)
-      u_diff_integrated = @show abs(sqeuclidean_normalized(u_vec_approx, u_vec_exact))
-      u_diff_integrated = @show sum(abs2, u_vec_exact - u_vec_approx) / sum(abs2, u_vec_exact)
-
-      @show norm(u_vec_exact)
-      @show norm(u_vec_approx)
+      # ∑ᵢ |uᵢ - ũᵢ|² / ∑ᵢ |ũᵢ|²
+      u_diff_integrated = sum(abs2, u_vec_exact - u_vec_approx) / sum(abs2, u_vec_exact)
       push!(norm_errors, u_diff_integrated)
 
       # How well does it satisfy the Airy equation?
       xf = 2^nxf
       (; A, b) = airy_system(siteinds(u), xi, xf, results.α, results.β)
 
-      @show norm(b)
-      @show norm(u)
-      @show norm(apply(A, u; cutoff=1e-15))
-
-      push!(airy_errors, abs(sqeuclidean_normalized((A, u), b)))
+      push!(airy_errors, abs(sqeuclidean((A, u), b)))
     end
     push!(maxlinkdims, last(maxlinkdims_nxf))
     plot!(plot_norm_error, 2 .^ ns[nxf], norm_errors;
@@ -156,65 +142,78 @@ end
 
 # Solve the Airy equation:
 #
-# u''(x) + q(x) u(x) = 0
-#
-# where:
-#
-# q(x) = -x
+# u''(x) - x * u(x) = 0
 #
 # with the boundary values:
 #
-# u(xⁱ) = uⁱ
-# u(xᶠ) = uᶠ
-function airy_qtt_solver(;
-  n=nothing,
-  s=siteinds("Qubit", n),
-  xⁱ=1.0,
-  xᶠ,
+# u(xi) = ui
+# u(xf) = uf
+function airy_solver(;
+  xi=1.0,
+  xf,
+  n,
   α,
   β,
   seed=1234,
   init=nothing,
-  linsolve_kwargs=(; nsweeps=10, cutoff=1e-15, outputlevel=1, tol=1e-15, krylovdim=30, maxiter=30, ishermitian=true),
+  linsolve_kwargs=(;)
 )
+  linsolve_kwargs = (;
+    nsweeps=10,
+    cutoff=1e-15,
+    outputlevel=1,
+    tol=1e-15,
+    krylovdim=30,
+    maxiter=30,
+    ishermitian=true,
+    linsolve_kwargs...,
+  )
+
   # Normalize the coefficients
   α, β = (α, β) ./ norm((α, β))
 
-  n = length(s)
-
   @show n, 2^n, n * log10(2)
-  @show xⁱ, xᶠ
+  @show xi, xf
   @show linsolve_kwargs
 
-  time = @elapsed begin
-    # Set up Au = b
-    (; A, b) = airy_system(s, xⁱ, xᶠ, α, β)
-
-    # Starting guess for solution
-    if isnothing(init)
-      Random.seed!(seed)
-      u = randomMPS(s; linkdims=10)
-    else
-      init = replace_siteinds(init, s[1:length(init)])
-      u = prolongate(init, s[length(init) + 1:end])
-    end
-
-    # Solve Au = b
-    u = linsolve(A, b, u; nsite=2, linsolve_kwargs...)
-    u = linsolve(A, b, u; nsite=1, linsolve_kwargs...)
+  # Starting guess for solution
+  if isnothing(init)
+    Random.seed!(seed)
+    s = siteinds("Qubit", n)
+    init = randomMPS(s; linkdims=10)
+  else
+    s = siteinds(init)
+    ## init = replace_siteinds(init, s[1:length(init)])
+    ## u = prolongate(init, s[length(init) + 1:end])
   end
 
-  @show sqeuclidean_normalized(A, u, b)
+  # Set up Au = b
+  (; A, b) = airy_system(s, xi, xf, α, β)
 
-  return (; u, xⁱ, xᶠ, α, β, seed, linsolve_kwargs, time)
+  solve_time = @elapsed begin
+    # Solve Au = b
+    u = linsolve(A, b, init; nsite=2, linsolve_kwargs...)
+    # u = linsolve(A, b, u; nsite=1, linsolve_kwargs...)
+  end
+
+  @show sqeuclidean_normalized((A, u), b)
+
+  return (; u, init, xi, xf, α, β, seed, linsolve_kwargs, solve_time)
 end
 
-function run_airy(;
-  xᶠ,
-  n,
-  dirname,
+"""
+# nxfs = 1:2:3 # 1:2:11
+# ns = Dict(1 => 6:22, 3 => 6:22, 5 => 8:22, 7 => 11:22, 9 => 14:22, 11 => 17:22)
+nxfs = 1:2:11
+ns = Dict(1 => 2:22, 3 => 2:2, 5 => 2:22, 7 => 2:22, 9 => 2:22, 11 => 2:22)
+root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solver"
+results_dir = joinpath(root_dir, "results")
+airy_solver_run(nxfs, ns; results_dir, save_results=true)
+"""
+function airy_solver_run(nxfs, ns;
+  results_dir,
   save_results,
-  multigrid, # Use results from shorter system as starting state
+  multigrid=true, # Use results from shorter system as starting state
   # Other parameters, shouldn't change
   α=1.0,
   β=1.0,
@@ -233,35 +232,31 @@ function run_airy(;
   )
   @show linsolve_kwargs
 
-  if !isdir(dirname)
-    @warn "Results directory $dirname doesn't exist, making it now."
-    mkdir(dirname)
+  if !isdir(results_dir)
+    @warn "Results directory $results_dir doesn't exist, making it now."
+    mkpath(results_dir)
   end
 
-  xᶠs = xᶠ
-  ns = n
-  results = Matrix(undef, length(xᶠs), length(ns))
-  for j in eachindex(xᶠ)
-    xᶠⱼ = xᶠ[j]
-    for k in eachindex(n)
-      nₖ = n[k]
+  for nxf in nxfs
+    xf = 2^nxf
+    for n in ns[nxf]
       println("\n" * "#"^100)
-      println("Running Airy equation QTT solver for `xᶠ = $(xᶠⱼ)` and `n = $(nₖ)`.\n")
+      println("Running Airy equation QTT solver for `xf = $(xf)` and `n = $(n)`.\n")
       u_init = nothing
       if multigrid
-        println("\nTry using state from length $(nₖ - 1) as starting state.")
-        init_filename = airy_filename(; dirname, xᶠ=xᶠⱼ, n=(nₖ - 1))
+        println("\nTry using state from length $(n - 1) as starting state.")
+        init_filename = airy_solver_filename(; dirname=results_dir, xf=xf, n=(n - 1))
         if !isfile(init_filename)
           @warn "File $init_filename doesn't exist, a random starting state will be used instead."
         else
-          u_init = load_airy_results(; dirname, xᶠ=xᶠⱼ, n=nₖ - 1).u
+          u_init = load_airy_results(; dirname=results_dir, xf=xf, n=(n - 1)).u
+          u_init = prolongate(u_init, siteind("Qubit", n))
         end
       else
         @warn "Not saving results to file $filename."
       end
-      result = solve_airy(; xᶠ=xᶠⱼ, n=nₖ, α, β, seed, init=u_init, linsolve_kwargs)
-      results[j, k] = result
-      filename = airy_filename(; dirname, xᶠ=xᶠⱼ, n=nₖ)
+      result = airy_solver(; xf, n, α, β, seed, init=u_init, linsolve_kwargs)
+      filename = airy_solver_filename(; dirname=results_dir, xf, n)
       if save_results
         println("\nSaving results to file $filename.")
         if isfile(filename)
@@ -273,5 +268,143 @@ function run_airy(;
       end
     end
   end
-  return results
+end
+
+"""
+# nxfs = 1:2:3 # 1:2:11
+# ns = Dict(1 => 6:22, 3 => 6:22, 5 => 8:22, 7 => 11:22, 9 => 14:22, 11 => 17:22)
+nxfs = 1:2:3 # 1:2:11
+ns = Dict(1 => 2:10, 3 => 2:10, 5 => 7:22, 7 => 9:22, 9 => 11:22, 11 => 13:22)
+root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solver"
+results_dir = joinpath(root_dir, "results")
+exact_results_dir = joinpath(root_dir, "..", "airy_solution_compression", "results")
+plots_dir = joinpath(root_dir, "plots")
+airy_solver_analyze(nxfs, ns; results_dir, exact_results_dir, plots_dir)
+"""
+function airy_solver_analyze(nxfs, ns; results_dir, exact_results_dir, plots_dir)
+  if !isdir(results_dir)
+    error("No results directory $(results_dir)")
+  end
+  if !isdir(plots_dir)
+    @warn "Making the directory path $(plots_dir)"
+    mkpath(plots_dir)
+  end
+  error_linsolves = Dict()
+  error_diffs = Dict()
+  solve_times = Dict()
+  maxlinkdims = Dict()
+  for nxf in nxfs
+    @show nxf
+    error_linsolves[nxf] = Float64[]
+    error_diffs[nxf] = Float64[]
+    solve_times[nxf] = Float64[]
+    maxlinkdims[nxf] = Float64[]
+    for n in ns[nxf]
+      println()
+      @show nxf, n
+
+      # results = load(airy_solver_filename(; dirname=results_dir, xf=2^nxf, n=n), "results")
+      results = load_airy_results(; dirname=results_dir, xf=2^nxf, n=n)
+      u = results.u
+      α = results.α
+      β = results.β
+      α, β = (α, β) ./ norm((α, β))
+
+      @show norm(u)
+
+      xi = results.xi
+      xf = results.xf
+      solve_time = results.solve_time
+
+      s = siteinds(u)
+      n = length(u)
+      N = 2^n
+      h = (xf - xi) / N
+      (; A, b) = airy_system(s, xi, xf, α, β)
+
+      error_linsolve = @show sqeuclidean_normalized((A, u), b)
+      if iszero(error_linsolve)
+        error_linsolve = 1e-15
+      end
+
+      # TODO: Implement airy_compression_filename(nxf, n))
+      exact_results = load(joinpath(exact_results_dir, "airy_qtt_compression_xi_1.0_xf_2^$(nxf)_n_$(n).jld2"), "results")
+      u_exact = exact_results.u
+      u_exact = replace_siteinds(u_exact, s)
+
+      if n ≤ 10
+        display(lineplot(mps_to_discrete_function(u)))
+        display(lineplot(mps_to_discrete_function(u_exact)))
+      end
+
+      @show norm(u_exact), norm(u)
+      error_diff = @show sqeuclidean_normalized(u, u_exact)
+
+      push!(error_linsolves[nxf], error_linsolve)
+      push!(error_diffs[nxf], error_diff)
+      push!(solve_times[nxf], solve_time)
+      push!(maxlinkdims[nxf], maxlinkdim(u))
+    end
+  end
+
+  # Make plots
+  plot_error_linsolves = plot(;
+    title="Airy QTT solver",
+    legend=:topright,
+    xaxis=:log,
+    yaxis=:log,
+    linewidth=3,
+    xlabel="Number of gridpoints",
+    ylabel="∑ᵢ|Auᵢ - bᵢ|²",
+  )
+  plot_error_diffs = plot(;
+    title="Airy QTT solver",
+    legend=:bottomleft,
+    xaxis=:log,
+    yaxis=:log,
+    linewidth=3,
+    xlabel="Number of gridpoints",
+    ylabel="∑ᵢ|uᵢ - ũᵢ|² / ∑ᵢ|ũᵢ|²",
+  )
+  plot_maxlinkdims = plot(;
+    title="Airy QTT solver",
+    legend=:topleft,
+    xaxis=:log,
+    linewidth=3,
+    xlabel="Number of gridpoints",
+    ylabel="QTT Rank",
+  )
+  plot_time = plot(;
+    title="Airy QTT solver",
+    legend=:topleft,
+    xaxis=:log,
+    linewidth=3,
+    xlabel="Number of gridpoints",
+    ylabel="Time to solve (seconds)",
+  )
+  for nxf in nxfs
+    plot!(plot_error_linsolves, 2 .^ ns[nxf], abs.(error_linsolves[nxf]);
+      label="xf = 10^$(round(nxf * log10(2); digits=2))",
+      linewidth=3,
+    )
+    plot!(plot_error_diffs, 2 .^ ns[nxf], abs.(error_diffs[nxf]);
+      label="xf = 10^$(round(nxf * log10(2); digits=2))",
+      linewidth=3,
+    )
+    plot!(plot_maxlinkdims, 2 .^ ns[nxf], maxlinkdims[nxf];
+      label="xf = 10^$(round(nxf * log10(2); digits=2))",
+      linewidth=3,
+    )
+    plot!(plot_time, 2 .^ ns[nxf], solve_times[nxf];
+      label="xf = 10^$(round(nxf * log10(2); digits=2))",
+      linewidth=3,
+    )
+  end
+
+  println("Saving plots to $(plots_dir)")
+  Plots.savefig(plot_error_linsolves, joinpath(plots_dir, "plot_error_linsolves.png"))
+  Plots.savefig(plot_error_diffs, joinpath(plots_dir, "plot_error_diffs.png"))
+  Plots.savefig(plot_maxlinkdims, joinpath(plots_dir, "plot_qtt_rank.png"))
+  Plots.savefig(plot_time, joinpath(plots_dir, "plot_solve_time.png"))
+  return nothing
 end

@@ -200,11 +200,6 @@ function helmholtz_solver_analyze(nks, ns; results_dir, plots_dir)
       u *= real(sign(inner(u, u_exact)))
 
       @show norm(u_exact), norm(u)
-
-      # @show display(lineplot(real.(mps_to_discrete_function(u_exact)); title="Exact"))
-      # @show display(lineplot(mps_to_discrete_function(u); title="QTT"))
-      # @show display(lineplot(mps_to_discrete_function(u) - real.(mps_to_discrete_function(u_exact)); title="Diff"))
-
       error_diff = @show sqeuclidean_normalized(u, u_exact)
 
       push!(error_variances[nk], error_variance)
@@ -257,7 +252,7 @@ function helmholtz_solver_analyze(nks, ns; results_dir, plots_dir)
     xaxis=:log,
     linewidth=3,
     xlabel="Number of gridpoints",
-    ylabel="Time to solver (seconds)",
+    ylabel="Time to solve (seconds)",
   )
   for nk in nks
     plot!(plot_error_variances, 2 .^ ns[nk], abs.(error_variances[nk]);
