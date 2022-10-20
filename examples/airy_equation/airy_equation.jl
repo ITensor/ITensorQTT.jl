@@ -63,7 +63,7 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
     yaxis=:log,
     linewidth=3,
     xlabel="Number of gridpoints",
-    ylabel="∑ᵢ|uᵢ - ũᵢ|² ∑ᵢ|ũᵢ|²",
+    ylabel="∑ᵢ|uᵢ - ũᵢ|²/∑ᵢ|ũᵢ|²",
   )
   plot_airy_error = plot(;
     title="Error satisfying discretized Airy equation, ∑ᵢ|(Au)ᵢ - bᵢ|²",
@@ -95,10 +95,17 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
       # h = (xf - xi) / 2^n
       # ∑ᵢ |uᵢ - ũᵢ|² / 2^n
       # Normalized by `(xf - xi)`
-      u_diff_integrated = sum(abs2, u_vec_exact - u_vec_approx) / 2^n
+
+      # u_diff_integrated = sum(abs2, u_vec_exact - u_vec_approx) / 2^n
+      # u_diff_integrated = sum(abs2, u_vec_exact - u_vec_approx) / norm(u_vec_exact)^2
+
       @show norm(u_vec_exact)
       @show norm(u_vec_approx)
-      # u_diff_integrated = sum(abs2, u_vec_exact - u_vec_approx) / norm(u_vec_exact)^2
+      u_diff_integrated = @show abs(sqeuclidean_normalized(u_vec_approx, u_vec_exact))
+      u_diff_integrated = @show sum(abs2, u_vec_exact - u_vec_approx) / sum(abs2, u_vec_exact)
+
+      @show norm(u_vec_exact)
+      @show norm(u_vec_approx)
       push!(norm_errors, u_diff_integrated)
 
       # How well does it satisfy the Airy equation?
