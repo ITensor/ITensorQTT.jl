@@ -4,30 +4,30 @@ using JLD2
 using Plots
 using Random
 
-using ITensorPartialDiffEq: vec_to_mps
+## using ITensorPartialDiffEq: vec_to_mps
 
 ITensors.disable_warn_order()
 
-include("src/linsolve.jl")
+## include("src/linsolve.jl")
 include("src/airy_utils.jl")
 
-function airy_qtt(s::Vector{<:Index}, xi, xf; α=1.0, β=0.0, cutoff=1e-15)
-  α, β = (α, β) ./ norm((α, β))
-  return function_to_mps(x -> airy_solution(x, α, β), s, xi, xf; cutoff)
-end
-
-function airy_qtt_error(n::Int, xi, xf; α=1.0, β=0.0, cutoff=1e-15)
-  α, β = (α, β) ./ norm((α, β))
-
-  # Exact Airy solution from SpecialFunctions.jl
-  xrange = qtt_xrange(n, xi, xf)
-  u_vec_exact = airy_solution.(xrange, α, β)
-
-  s = siteinds("Qubit", n)
-  u = vec_to_mps(u_vec_exact, s; cutoff)
-
-  return (; u, u_vec_exact, α, β, cutoff, xi, xf)
-end
+## function airy_qtt(s::Vector{<:Index}, xi, xf; α=1.0, β=0.0, cutoff=1e-15)
+##   α, β = (α, β) ./ norm((α, β))
+##   return function_to_mps(x -> airy_solution(x, α, β), s, xi, xf; cutoff)
+## end
+## 
+## function airy_qtt_compression(n::Int, xi, xf; α=1.0, β=0.0, cutoff=1e-15)
+##   α, β = (α, β) ./ norm((α, β))
+## 
+##   # Exact Airy solution from SpecialFunctions.jl
+##   xrange = qtt_xrange(n, xi, xf)
+##   u_vec_exact = airy_solution.(xrange, α, β)
+## 
+##   s = siteinds("Qubit", n)
+##   u = vec_to_mps(u_vec_exact, s; cutoff)
+## 
+##   return (; u, u_vec_exact, α, β, cutoff, xi, xf)
+## end
 
 """
 nxfs = 1:20 # xf in [2^1, 2^2, ..., 2^20]
@@ -46,7 +46,7 @@ function airy_qtt_compression_get_results(nxfs, ns; results_dir, α, β, cutoff=
     @show nxf
     @time for n in ns
       @show n
-      results = @time airy_qtt_error(n, 1.0, 2^nxf; α, β, cutoff)
+      results = @time airy_qtt_compression(n, 1.0, 2^nxf; α, β, cutoff)
       jldsave(joinpath(results_dir, "airy_qtt_compression_xi_1.0_xf_2^$(nxf)_n_$(n).jld2"); results)
     end
   end
@@ -84,16 +84,16 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
     yaxis=:log,
     linewidth=3,
     xlabel="Number of gridpoints",
-    ylabel="∑ᵢ|uᵢ - ũᵢ| * h / (xf - xi)",
+    ylabel="∑ᵢ|uᵢ - ũᵢ|² ∑ᵢ|ũᵢ|²",
   )
   plot_airy_error = plot(;
-    title="Error satisfying discretized Airy equation, ∑ᵢ|(Au)ᵢ - bᵢ| * h",
+    title="Error satisfying discretized Airy equation, ∑ᵢ|(Au)ᵢ - bᵢ|²",
     legend=:bottomleft,
     xaxis=:log,
     yaxis=:log,
     linewidth=3,
     xlabel="Number of gridpoints",
-    ylabel="∑ᵢ|(Au)ᵢ - bᵢ| * h",
+    ylabel="∑ᵢ|(Au)ᵢ - bᵢ|²",
   )
   maxlinkdims = Float64[]
   for nxf in nxfs
@@ -117,12 +117,20 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
       # ∑ᵢ |uᵢ - ũᵢ|² / 2^n
       # Normalized by `(xf - xi)`
       u_diff_integrated = sum(abs2, u_vec_exact - u_vec_approx) / 2^n
+      @show norm(u_vec_exact)
+      @show norm(u_vec_approx)
+      # u_diff_integrated = sum(abs2, u_vec_exact - u_vec_approx) / norm(u_vec_exact)^2
       push!(norm_errors, u_diff_integrated)
 
       # How well does it satisfy the Airy equation?
       xf = 2^nxf
       (; A, b) = airy_system(siteinds(u), xi, xf, results.α, results.β)
-      push!(airy_errors, linsolve_error(A, u, b)^2)
+
+      @show norm(b)
+      @show norm(u)
+      @show norm(apply(A, u; cutoff=1e-15))
+
+      push!(airy_errors, abs(sqeuclidean_normalized((A, u), b)))
     end
     push!(maxlinkdims, last(maxlinkdims_nxf))
     plot!(plot_norm_error, 2 .^ ns[nxf], norm_errors;
@@ -210,7 +218,7 @@ function airy_qtt_solver(;
     u = linsolve(A, b, u; nsite=1, linsolve_kwargs...)
   end
 
-  @show linsolve_error(A, u, b)
+  @show sqeuclidean_normalized(A, u, b)
 
   return (; u, xⁱ, xᶠ, α, β, seed, linsolve_kwargs, time)
 end

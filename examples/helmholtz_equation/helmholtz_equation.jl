@@ -3,117 +3,115 @@ using ITensorPartialDiffEq
 using JLD2
 using Plots
 
-using ITensorPartialDiffEq: insert_missing_links
-
 ITensors.disable_warn_order()
 
-function ITensorPartialDiffEq.project_bits(u::MPS, left_bits::Vector{Int}, right_bits::Vector{Int})
-  u = project_bits(u, left_bits)
-  return reverse(project_bits(reverse(u), reverse(right_bits)))
-end
-
-function ITensorPartialDiffEq.project_bits(u::MPS, left_bits::Vector{Int}, nright_bits::Int)
-  return project_bits(u, left_bits, fill(0, nright_bits))
-end
-
-"""
-Find `α, β` such that `x̃ = α * x + β` given
-`(xi, x̃i)` and `(xf, x̃f)`.
-"""
-function rescale(xi, xf, x̃i, x̃f)
-  α = (x̃f - x̃i) / (xf - xi)
-  β = x̃i - α * xi
-  return α, β
-end
-
-"""
-exp(α * x), x ∈ [0, 1)
-
-xi, xf = 0.0, 1.0
-n = length(s)
-N = 2^n
-h = (xf - xi) / N
-x = [xi + h * j for j in 0:(N-1)]
-"""
-function qtt(::typeof(exp), α::Number, β::Number, s::Vector{<:Index})
-  n = length(s)
-  return exp(β) * MPS([itensor([1, exp(α * 2.0^(-j))], s[j]) for j in 1:n])
-end
-
-function qtt(::typeof(exp), α::Number, s::Vector{<:Index})
-  return qtt(exp, α, 0.0, s)
-end
-
-"""
-sin(α * x), x ∈ [0, 1)
-
-n = 5
-lineplot(abs.(mps_to_discrete_function(qtt(sin, 2π/2^n, siteinds("Qubit", n)))))
-"""
-function qtt(::typeof(sin), α::Number, β::Number, s::Vector{<:Index})
-  ψ₁ = qtt(exp, im * α, β, s)
-  ψ₂ = qtt(exp, -im * α, β, s)
-
-  # Workaround for bug in MPS + MPS with missing links
-  ψ₁ = insert_missing_links(ψ₁)
-  ψ₂ = insert_missing_links(ψ₂)
-
-  return -(ψ₁, ψ₂; alg="directsum") / 2im
-end
-
-function qtt(::typeof(sin), α::Number, s::Vector{<:Index})
-  return qtt(sin, α, 0.0, s)
-end
-
-"""
-sin(α * x), x ∈ [0, 1)
-"""
-function qtt(::typeof(cos), α::Number, β::Number, s::Vector{<:Index})
-  ψ₁ = qtt(exp, im * α, β, s)
-  ψ₂ = qtt(exp, -im * α, β, s)
-
-  # Workaround for bug in MPS + MPS with missing links
-  ψ₁ = insert_missing_links(ψ₁)
-  ψ₂ = insert_missing_links(ψ₂)
-
-  return +(ψ₁, ψ₂; alg="directsum") / 2
-end
-
-function qtt(::typeof(cos), α::Number, s::Vector{<:Index})
-  return qtt(cos, α, 0.0, s)
-end
-
-"""
-Compute the square Euclidean distance:
-|Ax - b|² = <Ax - b, Ax - b>
-          = <Ax, Ax> - <Ax, b> - <b, Ax> + <b, b>
-          = <Ax, Ax> - 2 * real(<b, Ax>) + <b, b>
-See: https://github.com/JuliaStats/Distances.jl
-"""
-function sqeuclidean((A, x)::Tuple{MPO,MPS}, b::MPS)
-  return inner(A, x, A, x) - 2 * real(inner(b', A, x)) + inner(b, b)
-end
-
-function sqeuclidean_normalized((A, x)::Tuple{MPO,MPS}, b::MPS)
-  bb = inner(b, b)
-  return 1.0 + (inner(A, x, A, x) / bb - 2 * real(inner(b', A, x)) / bb)
-end
-
-"""
-Compute the square Euclidean distance:
-|x - y|² = <x - y, x - y>
-          = <x, x> - <x, y> - <y, x> + <y, y>
-          = <x, x> - 2 * real(<y, x>) + <y, y>
-See: https://github.com/JuliaStats/Distances.jl
-"""
-function sqeuclidean(x::MPS, y::MPS)
-  return inner(x, x) - 2 * real(inner(y, x)) + inner(y, y)
-end
-
-function sqeuclidean_normalized(x::MPS, y::MPS)
-  yy = inner(y, y)
-  return 1.0 + (inner(x, x) / yy - 2 * real(inner(y, x)) / yy)
-end
+## function ITensorPartialDiffEq.project_bits(u::MPS, left_bits::Vector{Int}, right_bits::Vector{Int})
+##   u = project_bits(u, left_bits)
+##   return reverse(project_bits(reverse(u), reverse(right_bits)))
+## end
+## 
+## function ITensorPartialDiffEq.project_bits(u::MPS, left_bits::Vector{Int}, nright_bits::Int)
+##   return project_bits(u, left_bits, fill(0, nright_bits))
+## end
+## 
+## """
+## Find `α, β` such that `x̃ = α * x + β` given
+## `(xi, x̃i)` and `(xf, x̃f)`.
+## """
+## function rescale(xi, xf, x̃i, x̃f)
+##   α = (x̃f - x̃i) / (xf - xi)
+##   β = x̃i - α * xi
+##   return α, β
+## end
+## 
+## """
+## exp(α * x), x ∈ [0, 1)
+## 
+## xi, xf = 0.0, 1.0
+## n = length(s)
+## N = 2^n
+## h = (xf - xi) / N
+## x = [xi + h * j for j in 0:(N-1)]
+## """
+## function qtt(::typeof(exp), α::Number, β::Number, s::Vector{<:Index})
+##   n = length(s)
+##   return exp(β) * MPS([itensor([1, exp(α * 2.0^(-j))], s[j]) for j in 1:n])
+## end
+## 
+## function qtt(::typeof(exp), α::Number, s::Vector{<:Index})
+##   return qtt(exp, α, 0.0, s)
+## end
+## 
+## """
+## sin(α * x), x ∈ [0, 1)
+## 
+## n = 5
+## lineplot(abs.(mps_to_discrete_function(qtt(sin, 2π/2^n, siteinds("Qubit", n)))))
+## """
+## function qtt(::typeof(sin), α::Number, β::Number, s::Vector{<:Index})
+##   ψ₁ = qtt(exp, im * α, β, s)
+##   ψ₂ = qtt(exp, -im * α, β, s)
+## 
+##   # Workaround for bug in MPS + MPS with missing links
+##   ψ₁ = insert_missing_links(ψ₁)
+##   ψ₂ = insert_missing_links(ψ₂)
+## 
+##   return -(ψ₁, ψ₂; alg="directsum") / 2im
+## end
+## 
+## function qtt(::typeof(sin), α::Number, s::Vector{<:Index})
+##   return qtt(sin, α, 0.0, s)
+## end
+## 
+## """
+## sin(α * x), x ∈ [0, 1)
+## """
+## function qtt(::typeof(cos), α::Number, β::Number, s::Vector{<:Index})
+##   ψ₁ = qtt(exp, im * α, β, s)
+##   ψ₂ = qtt(exp, -im * α, β, s)
+## 
+##   # Workaround for bug in MPS + MPS with missing links
+##   ψ₁ = insert_missing_links(ψ₁)
+##   ψ₂ = insert_missing_links(ψ₂)
+## 
+##   return +(ψ₁, ψ₂; alg="directsum") / 2
+## end
+## 
+## function qtt(::typeof(cos), α::Number, s::Vector{<:Index})
+##   return qtt(cos, α, 0.0, s)
+## end
+## 
+## """
+## Compute the square Euclidean distance:
+## |Ax - b|² = <Ax - b, Ax - b>
+##           = <Ax, Ax> - <Ax, b> - <b, Ax> + <b, b>
+##           = <Ax, Ax> - 2 * real(<b, Ax>) + <b, b>
+## See: https://github.com/JuliaStats/Distances.jl
+## """
+## function sqeuclidean((A, x)::Tuple{MPO,MPS}, b::MPS)
+##   return inner(A, x, A, x) - 2 * real(inner(b', A, x)) + inner(b, b)
+## end
+## 
+## function sqeuclidean_normalized((A, x)::Tuple{MPO,MPS}, b::MPS)
+##   bb = inner(b, b)
+##   return 1.0 + (inner(A, x, A, x) / bb - 2 * real(inner(b', A, x)) / bb)
+## end
+## 
+## """
+## Compute the square Euclidean distance:
+## |x - y|² = <x - y, x - y>
+##           = <x, x> - <x, y> - <y, x> + <y, y>
+##           = <x, x> - 2 * real(<y, x>) + <y, y>
+## See: https://github.com/JuliaStats/Distances.jl
+## """
+## function sqeuclidean(x::MPS, y::MPS)
+##   return inner(x, x) - 2 * real(inner(y, x)) + inner(y, y)
+## end
+## 
+## function sqeuclidean_normalized(x::MPS, y::MPS)
+##   yy = inner(y, y)
+##   return 1.0 + (inner(x, x) / yy - 2 * real(inner(y, x)) / yy)
+## end
 
 """
 helmholtz_solver(0, 10) # Solve a single sin wave with 2^10 gridpoints

@@ -93,3 +93,44 @@ function insert_missing_links(ψ::AbstractMPS)
   end
   return ψ
 end
+
+"""
+Compute the square Euclidean distance:
+|Ax - b|² = <Ax - b, Ax - b>
+          = <Ax, Ax> - <Ax, b> - <b, Ax> + <b, b>
+          = <Ax, Ax> - 2 * real(<b, Ax>) + <b, b>
+See: https://github.com/JuliaStats/Distances.jl
+"""
+function sqeuclidean((A, x)::Tuple{MPO,MPS}, b::MPS)
+  return inner(A, x, A, x) - 2 * real(inner(b', A, x)) + inner(b, b)
+end
+
+function sqeuclidean_normalized((A, x)::Tuple{MPO,MPS}, b::MPS)
+  bb = inner(b, b)
+  return 1.0 + (inner(A, x, A, x) / bb - 2 * real(inner(b', A, x)) / bb)
+end
+
+"""
+Compute the square Euclidean distance:
+|x - y|² = <x - y, x - y>
+          = <x, x> - <x, y> - <y, x> + <y, y>
+          = <x, x> - 2 * real(<y, x>) + <y, y>
+See: https://github.com/JuliaStats/Distances.jl
+"""
+function sqeuclidean(x::MPS, y::MPS)
+  return inner(x, x) - 2 * real(inner(y, x)) + inner(y, y)
+end
+
+function sqeuclidean_normalized(x::MPS, y::MPS)
+  yy = inner(y, y)
+  return 1.0 + (inner(x, x) / yy - 2 * real(inner(y, x)) / yy)
+end
+
+function sqeuclidean(x::Vector, y::Vector)
+  return dot(x, x) - 2 * real(dot(y, x)) + dot(y, y)
+end
+
+function sqeuclidean_normalized(x::Vector, y::Vector)
+  yy = dot(y, y)
+  return 1.0 + (dot(x, x) / yy - 2 * real(dot(y, x)) / yy)
+end
