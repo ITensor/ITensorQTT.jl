@@ -4,10 +4,114 @@ using JLD2
 using Plots
 using Random
 using UnicodePlots
+using FFTW
 
 ITensors.disable_warn_order()
 
 include("src/airy_utils.jl")
+
+"""
+ns = 7:14
+xi, xf = 1.0, 5.0
+α, β = 1.0, 1.0
+res = airy_compare_to_matrix.(ns; α, β, xi, xf)
+airy_err = first.(res)
+integral_err = last.(res)
+linreg(ns, log2.(airy_err)) # ∫dx |A(x,x')u(x') - b(x)|
+# 2-element Vector{Float64}:
+#   0.6864681664612592
+#  -1.997374659387574
+linreg(ns, log2.(integral_err)) # ∫dx |u(x) - ũ(x)|²
+# 2-element Vector{Float64}:
+#   1.1385702262631532
+#  -1.9818952100419311
+
+# Resource scaling with constant integral error `∫dx |u(x) - ũ(x)|²`:
+# N = 2 * xf²
+# log₂(N) = n = log₂(2 * xf²) = log₂(xf²) + log₂(2) = 2 * log₂(xf) + 1 = 2nxf + 1
+nxfs = 1:8 #1:12
+res = @time [airy_compare_to_matrix(2nxf + 1; α, β, xi, xf=2^nxf, fft_cutoff=3.0) for nxf in nxfs]
+airy_err = getindex.(res, :linsolve_error)
+integral_err = getindex.(res, :diff)
+
+# Fourier transform results
+Ns = log2.(getindex.(res, :N))
+nnz_ffts = log2.(getindex.(res, :nnz_fft))
+linreg(Ns, nnz_ffts)
+lineplot(Ns, nnz_ffts)
+"""
+function airy_compare_to_matrix(n; α, β, xi, xf, fft_cutoff=1.0)
+  α, β = (α, β) ./ norm((α, β))
+  N = 2^n
+  s = siteinds("Qubit", n)
+
+  h = (xf - xi) / N
+  # xs = range(; start=xi, stop=xf, length=(N+1))[1:N]
+  xs = [xi + j * h for j in 0:(N - 1)]
+
+  println("Compute discrete Airy function")
+  u_exact = @time airy_solution.(xs, α, β)
+  u_fft = fft(u_exact)
+  nnz_fft = @show count(x -> abs(x) > fft_cutoff, u_fft)
+
+  Ab_mpo = airy_system(s, xi, xf, α, β)
+
+  if n < 15
+    A_mpo = @time mpo_to_mat(Ab_mpo.A)
+  end
+  b_mpo = mps_to_discrete_function(Ab_mpo.b)
+  if n < 15
+    u_mpo = A_mpo \ b_mpo
+  end
+
+  println("Solve Airy equation with matrix A\\b")
+  Ab_mat = airy_system_matrix(s, xi, xf, α, β)
+  A_mat = Ab_mat.A
+  b_mat = Ab_mat.b
+  u_mat = @time A_mat \ b_mat
+
+  display(lineplot(u_exact; label="u_exact"))
+
+  if n < 15
+    println("From MPO")
+    display(A_mpo)
+    display(lineplot(u_mpo; label="u_mpo"))
+  end
+
+  println("Matrix version")
+  display(A_mat)
+  display(lineplot(u_mat; label="u_mat"))
+
+  display(lineplot(log10.(abs2.(u_mat - u_exact)); label="log10.(|u_mat - u_exact|²)"))
+
+  @show n, N
+  @show sum(abs2, u_mat - u_exact) / N
+  if n < 15
+    @show sum(abs2, u_mpo - u_exact) / N
+  end
+  @show norm(A_mat * u_exact - b_mat)
+  @show sum(abs, A_mat * u_exact - b_mat) / N
+  @show norm(A_mat * u_mat - b_mat)
+
+  @show number_of_zeros(u_exact)
+  if n < 15
+    @show number_of_zeros(u_mpo)
+  end
+  @show number_of_zeros(u_mat)
+
+  if n < 15
+    @show diff(diag(A_mpo) / h^2)[1:min(N - 1, 10)]
+  end
+  @show diff(diag(A_mat) / h^2)[1:min(N - 1, 10)]
+  @show (xf - xi) / (N - 1)
+  @show (xf - xi) / N
+
+  @show norm(b_mpo - b_mat)
+  if n < 15
+    @show norm(A_mpo - A_mat)
+  end
+  return (; nnz_fft, N, linsolve_error=sum(abs, A_mat * u_exact - b_mat) / N, diff=sum(abs2, u_mat - u_exact) / N)
+end
 
 """
 nxfs = 1:20 # xf in [2^1, 2^2, ..., 2^20]
@@ -48,14 +152,23 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
   if !isdir(plots_dir)
     mkpath(plots_dir)
   end
-  plot_maxlinkdim = plot(;
+  plot_qtt_rank = plot(;
     title="Maximum QTT rank",
     legend=:topleft,
     xaxis=:log,
     yaxis=:log,
     linewidth=3,
     xlabel="xf",
-    ylabel="Maximum QTT rank",
+    ylabel="QTT rank",
+  )
+  plot_memory = plot(;
+    title="QTT memory usage",
+    legend=:topleft,
+    xaxis=:log,
+    yaxis=:log,
+    linewidth=3,
+    xlabel="xf",
+    ylabel="Memory usage",
   )
   plot_norm_error = plot(;
     title="Difference from exact solution",
@@ -75,11 +188,22 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
     xlabel="Number of gridpoints",
     ylabel="∑ᵢ|(Au)ᵢ - bᵢ|²",
   )
+  plot_airy_exact_error = plot(;
+    title="Error of exact solution from satisfying discretized Airy equation",
+    legend=:bottomleft,
+    xaxis=:log,
+    yaxis=:log,
+    linewidth=3,
+    xlabel="Number of gridpoints",
+    ylabel="∑ᵢ|(Au)ᵢ - bᵢ|²",
+  )
   maxlinkdims = Float64[]
+  maxveclengths = Float64[]
   for nxf in nxfs
     maxlinkdims_nxf = Float64[]
     norm_errors = Float64[]
     airy_errors = Float64[]
+    airy_exact_errors = Float64[]
     for n in ns[nxf]
       results = load(joinpath(results_dir, "airy_qtt_compression_xi_1.0_xf_2^$(nxf)_n_$(n).jld2"), "results")
       xi = results.xi
@@ -87,6 +211,7 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
       u = results.u
 
       # Save maximum the rank of the QTT
+      @show maxlinkdim(u)
       push!(maxlinkdims_nxf, maxlinkdim(u))
 
       n = length(u)
@@ -102,9 +227,20 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
       xf = 2^nxf
       (; A, b) = airy_system(siteinds(u), xi, xf, results.α, results.β)
 
+      Ab_mat = airy_system_matrix(siteinds(u), xi, xf, results.α, results.β)
+      A_mat = Ab_mat.A
+      b_mat = Ab_mat.b
+
       push!(airy_errors, abs(sqeuclidean((A, u), b)))
+      push!(airy_exact_errors, sum(abs2, A_mat * u_vec_exact - b_mat))
     end
-    push!(maxlinkdims, last(maxlinkdims_nxf))
+
+    error_threshold = 1e-7
+    j_constant_error = findfirst(<(error_threshold), airy_errors)
+    n_constant_error = @show ns[nxf][j_constant_error]
+    push!(maxveclengths, 2^(n_constant_error))
+    push!(maxlinkdims, maxlinkdims_nxf[j_constant_error])
+
     plot!(plot_norm_error, 2 .^ ns[nxf], norm_errors;
           label="xf=$(2^nxf)",
           linewidth=3,
@@ -122,22 +258,58 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
           label="xf=$(2^nxf)",
           linewidth=3,
          )
+
+    plot!(plot_airy_exact_error, 2 .^ ns[nxf], airy_exact_errors;
+          label="xf=$(2^nxf), exact",
+          linewidth=3,
+         )
   end
   x = 2 .^ nxfs
-  a, b = linreg(nxfs * log10(2), log10.(maxlinkdims))
-  plot!(plot_maxlinkdim, x, maxlinkdims;
-        label="Maximum QTT rank",
+
+  # Plot QTT rank
+  plot!(plot_qtt_rank, x, maxlinkdims;
+        label="QTT",
         linewidth=3,
        )
-  plot!(plot_maxlinkdim, x, 10 ^ a * x .^ b;
-        label="Best fit: $(round(10^a; digits=2)) xf ^ $(round(b; digits=2))",
+
+  a_qtt_rank, b_qtt_rank = linreg(nxfs * log10(2), log10.(maxlinkdims))
+  plot!(plot_qtt_rank, x, 10 ^ a_qtt_rank * x .^ b_qtt_rank;
+        label="Best fit: $(round(10^a_qtt_rank; digits=2)) xf ^ $(round(b_qtt_rank; digits=2))",
         linewidth=3,
         linestyle=:dash,
        )
+
+  # Plot memory usage
+  plot!(plot_memory, x, 2 .* log2.(maxveclengths) .* maxlinkdims .^ 2;
+        label="QTT",
+        linewidth=3,
+       )
+
+  a_qtt, b_qtt = linreg(nxfs * log10(2), log10.(2 .* log2.(maxveclengths) .* maxlinkdims .^ 2))
+  plot!(plot_memory, x, 10 ^ a_qtt * x .^ b_qtt;
+        label="Best fit: $(round(10^a_qtt; digits=2)) xf ^ $(round(b_qtt; digits=2))",
+        linewidth=3,
+        linestyle=:dash,
+       )
+
+  plot!(plot_memory, x, maxveclengths;
+        label="Number of gridpoints",
+        linewidth=3,
+       )
+
+  a_fd, b_fd = linreg(nxfs * log10(2), log10.(maxveclengths))
+  plot!(plot_memory, x, 10 ^ a_fd * x .^ b_fd;
+        label="Best fit: $(round(10^a_fd; digits=2)) xf ^ $(round(b_fd; digits=2))",
+        linewidth=3,
+        linestyle=:dash,
+       )
+
   println("Saving plots to $(plots_dir)")
-  savefig(plot_maxlinkdim, joinpath(plots_dir, "plot_maxlinkdim.png"))
-  savefig(plot_norm_error, joinpath(plots_dir, "plot_norm_error.png"))
-  savefig(plot_airy_error, joinpath(plots_dir, "plot_airy_error.png"))
+  Plots.savefig(plot_qtt_rank, joinpath(plots_dir, "airy_qtt_rank.png"))
+  Plots.savefig(plot_memory, joinpath(plots_dir, "airy_memory.png"))
+  Plots.savefig(plot_norm_error, joinpath(plots_dir, "airy_error_diffs.png"))
+  Plots.savefig(plot_airy_error, joinpath(plots_dir, "airy_error_diffeq.png"))
+  Plots.savefig(plot_airy_exact_error, joinpath(plots_dir, "airy_exact_error_diffeq.png"))
 end
 
 # Solve the Airy equation:
@@ -273,8 +445,8 @@ end
 """
 # nxfs = 1:2:3 # 1:2:11
 # ns = Dict(1 => 6:22, 3 => 6:22, 5 => 8:22, 7 => 11:22, 9 => 14:22, 11 => 17:22)
-nxfs = 1:2:3 # 1:2:11
-ns = Dict(1 => 2:10, 3 => 2:10, 5 => 7:22, 7 => 9:22, 9 => 11:22, 11 => 13:22)
+nxfs = 1:2:11
+ns = Dict(1 => 2:22, 3 => 2:2, 5 => 2:22, 7 => 2:22, 9 => 2:22, 11 => 2:22)
 root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solver"
 results_dir = joinpath(root_dir, "results")
 exact_results_dir = joinpath(root_dir, "..", "airy_solution_compression", "results")
@@ -407,4 +579,28 @@ function airy_solver_analyze(nxfs, ns; results_dir, exact_results_dir, plots_dir
   Plots.savefig(plot_maxlinkdims, joinpath(plots_dir, "plot_qtt_rank.png"))
   Plots.savefig(plot_time, joinpath(plots_dir, "plot_solve_time.png"))
   return nothing
+end
+
+"""
+nk = 18
+n = 32 # 28:34
+root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solver"
+results_dir = joinpath(root_dir, "results")
+airy_solver_visualize_solution(nk, n, 0.75, -1; results_dir, plots_dir)
+exact_results_dir = joinpath(root_dir, "..", "airy_solution_compression", "results")
+"""
+function airy_solver_visualize_solution(; nk::Int, n::Int, xstart::Float64, zoom::Int=0, kwargs...)
+  # nzoom is the zoom level relative to the length scale `nk`
+  nproj = nk + zoom
+
+  # Assume range [xi, xf) = [0.0, 1.0)
+
+  if xstart ≥ 1
+    # Catch overflow
+    proj = fill(1, n)
+  else
+    proj = reverse(digits(Int(round(xstart * 2^n)); base=2, pad=n))
+  end
+  proj = proj[1:nproj]
+  return airy_solver_visualize_solution(nk, n, proj; kwargs...)
 end

@@ -104,7 +104,7 @@ nks = 0:5:20
 root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/helmholtz_solver"
 results_dir = joinpath(root_dir, "results")
 plots_dir = joinpath(root_dir, "plots")
-errors, solve_times, maxlinkdims = helmholtz_solver_analyze(nks, Dict([nk => (nk + 2):(nk + 13) for nk in nks]); results_dir, plots_dir);
+helmholtz_solver_analyze(nks, Dict([nk => (nk + 2):(nk + 13) for nk in nks]); results_dir, plots_dir)
 """
 function helmholtz_solver_analyze(nks, ns; results_dir, plots_dir)
   if !isdir(results_dir)
@@ -236,7 +236,7 @@ function helmholtz_solver_analyze(nks, ns; results_dir, plots_dir)
     yaxis=:log,
     linewidth=3,
     xlabel="Number of gridpoints",
-    ylabel="∑ᵢ|uᵢ - ũᵢ|² / ∑ᵢ|ũᵢ|²",
+    ylabel="∑ᵢ|uᵢ - sin(kxᵢ)|² / ∑ᵢ|sin(kxᵢ)|²",
   )
   plot_maxlinkdims = plot(;
     title="Helmholtz QTT solver",
@@ -278,12 +278,12 @@ function helmholtz_solver_analyze(nks, ns; results_dir, plots_dir)
   end
 
   println("Saving plots to $(plots_dir)")
-  Plots.savefig(plot_error_variances, joinpath(plots_dir, "plot_error_variances.png"))
-  Plots.savefig(plot_error_eigvals, joinpath(plots_dir, "plot_error_eigvals.png"))
-  Plots.savefig(plot_error_diffs, joinpath(plots_dir, "plot_error_diffs.png"))
-  Plots.savefig(plot_maxlinkdims, joinpath(plots_dir, "plot_qtt_rank.png"))
-  Plots.savefig(plot_time, joinpath(plots_dir, "plot_solve_time.png"))
-  return errors, solve_times, maxlinkdims
+  Plots.savefig(plot_error_variances, joinpath(plots_dir, "helmholtz_error_variances.png"))
+  Plots.savefig(plot_error_eigvals, joinpath(plots_dir, "helmholtz_error_eigvals.png"))
+  Plots.savefig(plot_error_diffs, joinpath(plots_dir, "helmholtz_error_diffs.png"))
+  Plots.savefig(plot_maxlinkdims, joinpath(plots_dir, "helmholtz_qtt_rank.png"))
+  Plots.savefig(plot_time, joinpath(plots_dir, "helmholtz_solve_time.png"))
+  return nothing
 end
 
 """

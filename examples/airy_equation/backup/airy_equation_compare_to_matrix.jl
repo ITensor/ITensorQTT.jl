@@ -4,8 +4,6 @@ using UnicodePlots
 
 ITensors.disable_warn_order()
 
-using ITensorPartialDiffEq: mpo_to_mat
-
 include("src/airy_utils.jl")
 
 """
