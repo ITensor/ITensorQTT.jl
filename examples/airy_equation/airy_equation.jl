@@ -146,6 +146,9 @@ plots_dir = joinpath(root_dir, "plots")
 airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, best_fit_points)
 """
 function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, best_fit_points=nothing)
+  labelfontsize = 12
+  tickfontsize = 10
+  legendfontsize = 10
   if !isdir(results_dir)
     error("No results directory $results_dir found")
   end
@@ -160,6 +163,11 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
     linewidth=3,
     xlabel="xf",
     ylabel="QTT rank",
+    xtickfontsize=tickfontsize,
+    ytickfontsize=tickfontsize,
+    xguidefontsize=labelfontsize,
+    yguidefontsize=labelfontsize,
+    legendfontsize,
   )
   plot_memory = plot(;
     title="QTT memory usage",
@@ -169,6 +177,11 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
     linewidth=3,
     xlabel="xf",
     ylabel="Memory usage",
+    xtickfontsize=tickfontsize,
+    ytickfontsize=tickfontsize,
+    xguidefontsize=labelfontsize,
+    yguidefontsize=labelfontsize,
+    legendfontsize,
   )
   plot_norm_error = plot(;
     title="Difference from exact solution",
@@ -178,6 +191,11 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
     linewidth=3,
     xlabel="Number of gridpoints",
     ylabel="∑ᵢ|uᵢ - ũᵢ|²/∑ᵢ|ũᵢ|²",
+    xtickfontsize=tickfontsize,
+    ytickfontsize=tickfontsize,
+    xguidefontsize=labelfontsize,
+    yguidefontsize=labelfontsize,
+    legendfontsize,
   )
   plot_airy_error = plot(;
     title="Error satisfying discretized Airy equation",
@@ -187,6 +205,11 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
     linewidth=3,
     xlabel="Number of gridpoints",
     ylabel="∑ᵢ|(Au)ᵢ - bᵢ|²",
+    xtickfontsize=tickfontsize,
+    ytickfontsize=tickfontsize,
+    xguidefontsize=labelfontsize,
+    yguidefontsize=labelfontsize,
+    legendfontsize,
   )
   plot_airy_exact_error = plot(;
     title="Error of exact solution from satisfying discretized Airy equation",
@@ -196,6 +219,11 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
     linewidth=3,
     xlabel="Number of gridpoints",
     ylabel="∑ᵢ|(Au)ᵢ - bᵢ|²",
+    xtickfontsize=tickfontsize,
+    ytickfontsize=tickfontsize,
+    xguidefontsize=labelfontsize,
+    yguidefontsize=labelfontsize,
+    legendfontsize,
   )
   maxlinkdims = Float64[]
   maxveclengths = Float64[]
@@ -305,11 +333,11 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
        )
 
   println("Saving plots to $(plots_dir)")
-  Plots.savefig(plot_qtt_rank, joinpath(plots_dir, "airy_qtt_rank.png"))
-  Plots.savefig(plot_memory, joinpath(plots_dir, "airy_memory.png"))
-  Plots.savefig(plot_norm_error, joinpath(plots_dir, "airy_error_diffs.png"))
-  Plots.savefig(plot_airy_error, joinpath(plots_dir, "airy_error_diffeq.png"))
-  Plots.savefig(plot_airy_exact_error, joinpath(plots_dir, "airy_exact_error_diffeq.png"))
+  Plots.savefig(plot_qtt_rank, joinpath(plots_dir, "airy_qtt_rank.pdf"))
+  Plots.savefig(plot_memory, joinpath(plots_dir, "airy_memory.pdf"))
+  Plots.savefig(plot_norm_error, joinpath(plots_dir, "airy_error_diffs.pdf"))
+  Plots.savefig(plot_airy_error, joinpath(plots_dir, "airy_error_diffeq.pdf"))
+  Plots.savefig(plot_airy_exact_error, joinpath(plots_dir, "airy_exact_error_diffeq.pdf"))
 end
 
 # Solve the Airy equation:
@@ -574,10 +602,10 @@ function airy_solver_analyze(nxfs, ns; results_dir, exact_results_dir, plots_dir
   end
 
   println("Saving plots to $(plots_dir)")
-  Plots.savefig(plot_error_linsolves, joinpath(plots_dir, "plot_error_linsolves.png"))
-  Plots.savefig(plot_error_diffs, joinpath(plots_dir, "plot_error_diffs.png"))
-  Plots.savefig(plot_maxlinkdims, joinpath(plots_dir, "plot_qtt_rank.png"))
-  Plots.savefig(plot_time, joinpath(plots_dir, "plot_solve_time.png"))
+  Plots.savefig(plot_error_linsolves, joinpath(plots_dir, "plot_error_linsolves.pdf"))
+  Plots.savefig(plot_error_diffs, joinpath(plots_dir, "plot_error_diffs.pdf"))
+  Plots.savefig(plot_maxlinkdims, joinpath(plots_dir, "plot_qtt_rank.pdf"))
+  Plots.savefig(plot_time, joinpath(plots_dir, "plot_solve_time.pdf"))
   return nothing
 end
 
@@ -603,4 +631,124 @@ function airy_solver_visualize_solution(; nk::Int, n::Int, xstart::Float64, zoom
   end
   proj = proj[1:nproj]
   return airy_solver_visualize_solution(nk, n, proj; kwargs...)
+end
+
+function airy_solver_visualize_solution(nk::Int, n::Int, proj::Vector{Int}; results_dir, nplot=min(8, n))
+  nplot = min(n, nplot)
+
+  if nplot + length(proj) > n
+    nplot = n - length(proj)
+  end
+
+  nproj = length(proj)
+  xstart = sum([proj[j] * 2.0^(-j) for j in 1:nproj])
+  xstop = xstart + sum([2.0^(-j) for j in (nproj + 1):n])
+  xrange = range(; start=xstart, stop=xstop, length=2^nplot)
+
+  results = load(joinpath(results_dir, airy_solver_filename(nk, n)), "results")
+  u = results.u
+  s = siteinds(u)
+  normalize!(u)
+  u /= √2
+  u .*= √2
+
+  k = 2 * π * 2^nk
+
+  # QTT function range
+  xi, xf = 0, 1 - 2.0^(-n)
+
+  # Error is uniform
+  x̃i, x̃f = 2.0^(-n), 1 - 2.0^(-n)
+
+  # Middle is more accurate
+  # x̃i, x̃f = 0, 1
+
+  # Right side is more accurate
+  # x̃i, x̃f = 0, 1 - 2.0^(-n)
+
+  # Right side is more accurate
+  # x̃i, x̃f = 2.0^(-n), 1
+
+  α, β = rescale(xi, xf, x̃i, x̃f)
+
+  u_exact = qtt(sin, α * k, β, s)
+
+  u *= real(sign(inner(u, u_exact)))
+
+  # @show sqeuclidean_normalized(u, u_exact)
+  # @show sqeuclidean(u, u_exact)
+
+  nleft = length(proj)
+  nright = n - nplot - nleft
+
+  # @show nplot, nleft, nright
+
+  left_bits = proj
+
+  # @show norm(u)
+  # @show norm(u_exact)
+
+  u_plot = project_bits(u, left_bits, nright)
+  u_exact_plot = project_bits(u_exact, left_bits, nright)
+
+  u_vec = mps_to_discrete_function(u_plot)
+  u_exact_vec = real.(mps_to_discrete_function(u_exact_plot))
+
+  return (; xrange, u_vec, u_exact_vec)
+end
+
+"""
+nks = 18:18
+ns = [30, 32, 34] # 28:34
+xstarts = 0:0.5:1.0
+zoom = -2
+root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solver"
+results_dir = joinpath(root_dir, "results")
+plots_dir = joinpath(root_dir, "plots")
+airy_solver_plot_solutions(nks, ns, xstarts, zoom; results_dir, plots_dir)
+"""
+function airy_solver_plot_solutions(nks, ns, xstarts, zoom; results_dir, plots_dir)
+  for nk in nks
+    for xstart in xstarts
+      plot_u_diff = plot(;
+        title="Helmholtz solution error, k = 2π * 2^$(nk)",
+        legend=:bottomright,
+        linewidth=3,
+        xlabel="x",
+        ylabel="|u(x) - sin(kx)|",
+        yaxis=:log,
+        xformatter=:plain, # disable scientific notation
+        yrange=[1e-8, 1e-2],
+      )
+      for n in ns
+        (; xrange, u_vec, u_exact_vec) = airy_solver_visualize_solution(; nk, n, xstart, zoom, results_dir)
+
+        # Plot the original functions
+        plot_u = plot(;
+                      title="Helmholtz solution, k = 2π * 2^$(nk), n = 2^$(n)",
+          legend=:topleft,
+          linewidth=3,
+          xlabel="x",
+          ylabel="u(x)",
+          xformatter=:plain, # disable scientific notation
+        )
+        plot!(plot_u, xrange, u_vec;
+          label="QTT solution",
+          linewidth=3,
+        )
+        plot!(plot_u, xrange, u_exact_vec;
+          label="sin(kx)",
+          linewidth=3,
+        )
+        Plots.savefig(plot_u, joinpath(plots_dir, "airy_visualize_nk_$(nk)_n_$(n)_xstart_$(xstart)_zoom_$(zoom)_qtt.pdf"))
+
+        # Plot the error
+        plot!(plot_u_diff, xrange, abs.(u_vec - u_exact_vec);
+          label="2^$n gridpoints",
+          linewidth=3,
+        )
+      end
+      Plots.savefig(plot_u_diff, joinpath(plots_dir, "airy_visualize_nk_$(nk)_ns_$(ns)_xstart_$(xstart)_zoom_$(zoom)_diff.pdf"))
+    end
+  end
 end

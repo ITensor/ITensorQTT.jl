@@ -114,6 +114,10 @@ function helmholtz_solver_analyze(nks, ns; results_dir, plots_dir)
     @warn "Making the directory path $(plots_dir)"
     mkpath(plots_dir)
   end
+
+  fontsize = 12
+  legendfontsize = 10
+
   error_variances = Dict()
   error_eigvals = Dict()
   error_diffs = Dict()
@@ -219,24 +223,39 @@ function helmholtz_solver_analyze(nks, ns; results_dir, plots_dir)
     linewidth=3,
     xlabel="Number of gridpoints",
     ylabel="∑ᵢ|Auᵢ|² - |∑ᵢ uⱼAuᵢ|²",
+    xtickfontsize=fontsize,
+    ytickfontsize=fontsize,
+    xguidefontsize=fontsize,
+    yguidefontsize=fontsize,
+    legendfontsize,
   )
   plot_error_eigvals = plot(;
     title="Helmholtz QTT solver",
-    legend=:bottomleft,
+    legend=:topright,
     xaxis=:log,
     yaxis=:log,
     linewidth=3,
     xlabel="Number of gridpoints",
     ylabel="|λ - λ̃|",
+    xtickfontsize=fontsize,
+    ytickfontsize=fontsize,
+    xguidefontsize=fontsize,
+    yguidefontsize=fontsize,
+    legendfontsize,
   )
   plot_error_diffs = plot(;
     title="Helmholtz QTT solver",
-    legend=:bottomleft,
+    legend=:topright,
     xaxis=:log,
     yaxis=:log,
     linewidth=3,
     xlabel="Number of gridpoints",
     ylabel="∑ᵢ|uᵢ - sin(kxᵢ)|² / ∑ᵢ|sin(kxᵢ)|²",
+    xtickfontsize=fontsize,
+    ytickfontsize=fontsize,
+    xguidefontsize=fontsize,
+    yguidefontsize=fontsize,
+    legendfontsize,
   )
   plot_maxlinkdims = plot(;
     title="Helmholtz QTT solver",
@@ -245,6 +264,11 @@ function helmholtz_solver_analyze(nks, ns; results_dir, plots_dir)
     linewidth=3,
     xlabel="Number of gridpoints",
     ylabel="QTT Rank",
+    xtickfontsize=fontsize,
+    ytickfontsize=fontsize,
+    xguidefontsize=fontsize,
+    yguidefontsize=fontsize,
+    legendfontsize,
   )
   plot_time = plot(;
     title="Helmholtz QTT solver",
@@ -253,6 +277,11 @@ function helmholtz_solver_analyze(nks, ns; results_dir, plots_dir)
     linewidth=3,
     xlabel="Number of gridpoints",
     ylabel="Time to solve (seconds)",
+    xtickfontsize=fontsize,
+    ytickfontsize=fontsize,
+    xguidefontsize=fontsize,
+    yguidefontsize=fontsize,
+    legendfontsize,
   )
   for nk in nks
     plot!(plot_error_variances, 2 .^ ns[nk], abs.(error_variances[nk]);
@@ -278,11 +307,11 @@ function helmholtz_solver_analyze(nks, ns; results_dir, plots_dir)
   end
 
   println("Saving plots to $(plots_dir)")
-  Plots.savefig(plot_error_variances, joinpath(plots_dir, "helmholtz_error_variances.png"))
-  Plots.savefig(plot_error_eigvals, joinpath(plots_dir, "helmholtz_error_eigvals.png"))
-  Plots.savefig(plot_error_diffs, joinpath(plots_dir, "helmholtz_error_diffs.png"))
-  Plots.savefig(plot_maxlinkdims, joinpath(plots_dir, "helmholtz_qtt_rank.png"))
-  Plots.savefig(plot_time, joinpath(plots_dir, "helmholtz_solve_time.png"))
+  Plots.savefig(plot_error_variances, joinpath(plots_dir, "helmholtz_error_variances.pdf"))
+  Plots.savefig(plot_error_eigvals, joinpath(plots_dir, "helmholtz_error_eigvals.pdf"))
+  Plots.savefig(plot_error_diffs, joinpath(plots_dir, "helmholtz_error_diffs.pdf"))
+  Plots.savefig(plot_maxlinkdims, joinpath(plots_dir, "helmholtz_qtt_rank.pdf"))
+  Plots.savefig(plot_time, joinpath(plots_dir, "helmholtz_solve_time.pdf"))
   return nothing
 end
 
@@ -384,6 +413,9 @@ plots_dir = joinpath(root_dir, "plots")
 helmholtz_solver_plot_solutions(nks, ns, xstarts, zoom; results_dir, plots_dir)
 """
 function helmholtz_solver_plot_solutions(nks, ns, xstarts, zoom; results_dir, plots_dir)
+  labelfontsize = 12
+  tickfontsize = 10
+  legendfontsize = 10
   for nk in nks
     for xstart in xstarts
       plot_u_diff = plot(;
@@ -395,6 +427,11 @@ function helmholtz_solver_plot_solutions(nks, ns, xstarts, zoom; results_dir, pl
         yaxis=:log,
         xformatter=:plain, # disable scientific notation
         yrange=[1e-8, 1e-2],
+        xtickfontsize=tickfontsize,
+        ytickfontsize=tickfontsize,
+        xguidefontsize=labelfontsize,
+        yguidefontsize=labelfontsize,
+        legendfontsize,
       )
       for n in ns
         (; xrange, u_vec, u_exact_vec) = helmholtz_solver_visualize_solution(; nk, n, xstart, zoom, results_dir)
@@ -407,6 +444,11 @@ function helmholtz_solver_plot_solutions(nks, ns, xstarts, zoom; results_dir, pl
           xlabel="x",
           ylabel="u(x)",
           xformatter=:plain, # disable scientific notation
+          xtickfontsize=tickfontsize,
+          ytickfontsize=tickfontsize,
+          xguidefontsize=labelfontsize,
+          yguidefontsize=labelfontsize,
+          legendfontsize,
         )
         plot!(plot_u, xrange, u_vec;
           label="QTT solution",
@@ -416,7 +458,7 @@ function helmholtz_solver_plot_solutions(nks, ns, xstarts, zoom; results_dir, pl
           label="sin(kx)",
           linewidth=3,
         )
-        Plots.savefig(plot_u, joinpath(plots_dir, "helmholtz_visualize_nk_$(nk)_n_$(n)_xstart_$(xstart)_zoom_$(zoom)_qtt.png"))
+        Plots.savefig(plot_u, joinpath(plots_dir, "helmholtz_visualize_nk_$(nk)_n_$(n)_xstart_$(xstart)_zoom_$(zoom)_qtt.pdf"))
 
         # Plot the error
         plot!(plot_u_diff, xrange, abs.(u_vec - u_exact_vec);
@@ -424,7 +466,7 @@ function helmholtz_solver_plot_solutions(nks, ns, xstarts, zoom; results_dir, pl
           linewidth=3,
         )
       end
-      Plots.savefig(plot_u_diff, joinpath(plots_dir, "helmholtz_visualize_nk_$(nk)_ns_$(ns)_xstart_$(xstart)_zoom_$(zoom)_diff.png"))
+      Plots.savefig(plot_u_diff, joinpath(plots_dir, "helmholtz_visualize_nk_$(nk)_ns_$(ns)_xstart_$(xstart)_zoom_$(zoom)_diff.pdf"))
     end
   end
 end
