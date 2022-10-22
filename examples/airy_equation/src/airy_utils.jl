@@ -54,7 +54,8 @@ function airy_system_matrix(s, xi, xf, α, β)
 end
 
 # Saving and loading data
-airy_solver_filename(; dirname, xf, n) = "$(dirname)/airy_xf_$(xf)_n_$(n).jld2"
+airy_solver_filename(xf, n) = "airy_xf_$(xf)_n_$(n).jld2"
+airy_solver_filename(; dirname, xf, n) = joinpath(dirname, airy_solver_filename(xf, n))
 
 function load_airy_results(; dirname, xf, n)
   filename = airy_solver_filename(; dirname, xf, n)

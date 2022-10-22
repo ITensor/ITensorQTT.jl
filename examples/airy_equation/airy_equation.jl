@@ -527,7 +527,7 @@ function airy_solver_analyze(nxfs, ns; results_dir, exact_results_dir, plots_dir
         error_linsolve = 1e-15
       end
 
-      # TODO: Implement airy_compression_filename(nxf, n))
+      # TODO: Implement airy_compression_filename(nxf, n)
       exact_results = load(joinpath(exact_results_dir, "airy_qtt_compression_xi_1.0_xf_2^$(nxf)_n_$(n).jld2"), "results")
       u_exact = exact_results.u
       u_exact = replace_siteinds(u_exact, s)
@@ -614,12 +614,12 @@ nk = 18
 n = 32 # 28:34
 root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solver"
 results_dir = joinpath(root_dir, "results")
-airy_solver_visualize_solution(nk, n, 0.75, -1; results_dir, plots_dir)
 exact_results_dir = joinpath(root_dir, "..", "airy_solution_compression", "results")
+airy_solver_visualize_solution(nk, n, 0.75, -1; results_dir, exact_results_dir, plots_dir)
 """
-function airy_solver_visualize_solution(; nk::Int, n::Int, xstart::Float64, zoom::Int=0, kwargs...)
-  # nzoom is the zoom level relative to the length scale `nk`
-  nproj = nk + zoom
+function airy_solver_visualize_solution(; xf::Int, n::Int, xstart::Float64, zoom::Int=0, kwargs...)
+  # nzoom is the zoom level relative to the length scale `xf`
+  nproj = Int(log2(xf)) + zoom
 
   # Assume range [xi, xf) = [0.0, 1.0)
 
@@ -629,11 +629,22 @@ function airy_solver_visualize_solution(; nk::Int, n::Int, xstart::Float64, zoom
   else
     proj = reverse(digits(Int(round(xstart * 2^n)); base=2, pad=n))
   end
+
+  @show proj
+  @show nproj
+  #nproj = min(length(proj), nproj)
+  @show nproj
+
   proj = proj[1:nproj]
-  return airy_solver_visualize_solution(nk, n, proj; kwargs...)
+
+  @show proj
+
+  return airy_solver_visualize_solution(xf, n, proj; kwargs...)
 end
 
-function airy_solver_visualize_solution(nk::Int, n::Int, proj::Vector{Int}; results_dir, nplot=min(8, n))
+function airy_solver_visualize_solution(xf::Int, n::Int, proj::Vector{Int}; results_dir, exact_results_dir, nplot=min(10, n))
+  nxf = Int(log2(xf))
+
   nplot = min(n, nplot)
 
   if nplot + length(proj) > n
@@ -645,38 +656,35 @@ function airy_solver_visualize_solution(nk::Int, n::Int, proj::Vector{Int}; resu
   xstop = xstart + sum([2.0^(-j) for j in (nproj + 1):n])
   xrange = range(; start=xstart, stop=xstop, length=2^nplot)
 
-  results = load(joinpath(results_dir, airy_solver_filename(nk, n)), "results")
+  # x̃ = αx + β
+  # α = (x̃f - x̃i) / (xf - xi)
+  # β = x̃i - (x̃f - x̃i) / (xf - xi) * xi
+  #
+  # xi = 0, xf = 1
+  # x̃i = 1, x̃f = xf
+  # x̃ = (xf - 1) * x + 1
+  xrange = (xf - 1) .* xrange .+ 1
+
+  @show nxf, n
+
+  # results = load(joinpath(results_dir, airy_solver_filename(xf, n)), "results")
+  results = load_airy_results(; dirname=results_dir, xf, n)
   u = results.u
   s = siteinds(u)
-  normalize!(u)
-  u /= √2
-  u .*= √2
 
-  k = 2 * π * 2^nk
+  exact_results = load(joinpath(exact_results_dir, "airy_qtt_compression_xi_1.0_xf_2^$(nxf)_n_$(n).jld2"), "results")
+  u_exact = exact_results.u
 
-  # QTT function range
-  xi, xf = 0, 1 - 2.0^(-n)
+  @show length(u)
+  @show length(u_exact)
 
-  # Error is uniform
-  x̃i, x̃f = 2.0^(-n), 1 - 2.0^(-n)
+  u_exact = replace_siteinds(u_exact, s)
 
-  # Middle is more accurate
-  # x̃i, x̃f = 0, 1
+  @show sqeuclidean_normalized(u, u_exact)
+  @show sqeuclidean(u, u_exact)
 
-  # Right side is more accurate
-  # x̃i, x̃f = 0, 1 - 2.0^(-n)
-
-  # Right side is more accurate
-  # x̃i, x̃f = 2.0^(-n), 1
-
-  α, β = rescale(xi, xf, x̃i, x̃f)
-
-  u_exact = qtt(sin, α * k, β, s)
-
-  u *= real(sign(inner(u, u_exact)))
-
-  # @show sqeuclidean_normalized(u, u_exact)
-  # @show sqeuclidean(u, u_exact)
+  @show norm(u)
+  @show norm(u_exact)
 
   nleft = length(proj)
   nright = n - nplot - nleft
@@ -685,47 +693,62 @@ function airy_solver_visualize_solution(nk::Int, n::Int, proj::Vector{Int}; resu
 
   left_bits = proj
 
-  # @show norm(u)
-  # @show norm(u_exact)
+  @show left_bits
+  @show nright
+
+  @show maxlinkdim(u)
+  @show maxlinkdim(u_exact)
 
   u_plot = project_bits(u, left_bits, nright)
   u_exact_plot = project_bits(u_exact, left_bits, nright)
 
   u_vec = mps_to_discrete_function(u_plot)
-  u_exact_vec = real.(mps_to_discrete_function(u_exact_plot))
+  u_exact_vec = mps_to_discrete_function(u_exact_plot)
 
   return (; xrange, u_vec, u_exact_vec)
 end
 
 """
-nks = 18:18
-ns = [30, 32, 34] # 28:34
-xstarts = 0:0.5:1.0
-zoom = -2
+nxfs = 5:2:11
+ns = 22 #[30, 32, 34] # 28:34
+xstarts = 0:0.125:1.0
+zoom = -1
+
+nxfs = 5
+ns = 22
+xstarts = 0.0
+zoom = -5
+
+nxfs = 11
+ns = 22
+xstarts = [1/16, 15/16]
+zoom = -1
+
 root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solver"
 results_dir = joinpath(root_dir, "results")
+exact_results_dir = joinpath(root_dir, "..", "airy_solution_compression", "results")
 plots_dir = joinpath(root_dir, "plots")
-airy_solver_plot_solutions(nks, ns, xstarts, zoom; results_dir, plots_dir)
+airy_solver_plot_solutions(2 .^ nxfs, ns, xstarts, zoom; results_dir, exact_results_dir, plots_dir)
 """
-function airy_solver_plot_solutions(nks, ns, xstarts, zoom; results_dir, plots_dir)
-  for nk in nks
+function airy_solver_plot_solutions(xfs, ns, xstarts, zoom; results_dir, exact_results_dir, plots_dir)
+  for xf in xfs
     for xstart in xstarts
-      plot_u_diff = plot(;
-        title="Helmholtz solution error, k = 2π * 2^$(nk)",
-        legend=:bottomright,
-        linewidth=3,
-        xlabel="x",
-        ylabel="|u(x) - sin(kx)|",
-        yaxis=:log,
-        xformatter=:plain, # disable scientific notation
-        yrange=[1e-8, 1e-2],
-      )
+##       plot_u_diff = plot(;
+##         title="Airy solution error, k = 2π * 2^$(xf)",
+##         legend=:bottomright,
+##         linewidth=3,
+##         xlabel="x",
+##         ylabel="|u(x) - sin(kx)|",
+##         yaxis=:log,
+##         xformatter=:plain, # disable scientific notation
+##         yrange=[1e-8, 1e-2],
+##       )
       for n in ns
-        (; xrange, u_vec, u_exact_vec) = airy_solver_visualize_solution(; nk, n, xstart, zoom, results_dir)
+        (; xrange, u_vec, u_exact_vec) = airy_solver_visualize_solution(; xf, n, xstart, zoom, results_dir, exact_results_dir)
 
         # Plot the original functions
         plot_u = plot(;
-                      title="Helmholtz solution, k = 2π * 2^$(nk), n = 2^$(n)",
+          title="Airy solution, xf = $(xf), n = 2^$(n)",
           legend=:topleft,
           linewidth=3,
           xlabel="x",
@@ -737,18 +760,18 @@ function airy_solver_plot_solutions(nks, ns, xstarts, zoom; results_dir, plots_d
           linewidth=3,
         )
         plot!(plot_u, xrange, u_exact_vec;
-          label="sin(kx)",
+          label="Airy function",
           linewidth=3,
         )
-        Plots.savefig(plot_u, joinpath(plots_dir, "airy_visualize_nk_$(nk)_n_$(n)_xstart_$(xstart)_zoom_$(zoom)_qtt.pdf"))
+        Plots.savefig(plot_u, joinpath(plots_dir, "airy_visualize_xf_$(xf)_n_$(n)_xstart_$(xstart)_zoom_$(zoom)_qtt.pdf"))
 
         # Plot the error
-        plot!(plot_u_diff, xrange, abs.(u_vec - u_exact_vec);
-          label="2^$n gridpoints",
-          linewidth=3,
-        )
+##        plot!(plot_u_diff, xrange, abs.(u_vec - u_exact_vec);
+##          label="2^$n gridpoints",
+##          linewidth=3,
+##        )
       end
-      Plots.savefig(plot_u_diff, joinpath(plots_dir, "airy_visualize_nk_$(nk)_ns_$(ns)_xstart_$(xstart)_zoom_$(zoom)_diff.pdf"))
+##      Plots.savefig(plot_u_diff, joinpath(plots_dir, "airy_visualize_xf_$(xf)_ns_$(ns)_xstart_$(xstart)_zoom_$(zoom)_diff.pdf"))
     end
   end
 end
