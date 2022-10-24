@@ -45,7 +45,7 @@ end
 function laplacian_mpo(s::Tuple{Vector{<:Index},Vector{<:Index}}, xstep::Tuple{Number,Number}=(1.0, 1.0))
   Δ₁ = interleave(laplacian_mpo(s[1], xstep[1]), MPO(s[2], "I"))
   Δ₂ = interleave(MPO(s[1], "I"), laplacian_mpo(s[2], xstep[2]))
-  return +(insert_missing_links(Δ₁), insert_missing_links(Δ₂); alg="directsum")
+  return convert(MPO, +(insert_missing_links(Δ₁), insert_missing_links(Δ₂); alg="directsum"))
 end
 
 #

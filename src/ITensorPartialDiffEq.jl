@@ -33,6 +33,7 @@ export function_to_mps,
   project_bits,
   dmrg_target,
   linsolve,
+  b_linsolve,
   interleave,
   boundary_value_mps,
   boundary_value_vector,
@@ -43,6 +44,7 @@ export function_to_mps,
   qtt,
   sqeuclidean,
   sqeuclidean_normalized,
-  vec_to_mps
+  vec_to_mps,
+  siteinds_per_dimension
 
 end

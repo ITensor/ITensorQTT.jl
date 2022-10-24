@@ -32,10 +32,15 @@ function prolongate(ψ::MPS, s::Tuple{Vararg{Index}}; cutoff=1e-8, kwargs...)
   s = vcat.(s_original, s)
   P = prolongation_mpo(s)
   ψ̃ = [ψ; MPS(fill(ITensor(1.0), ndims))]
-  s_end = Index(1, "Site") # Dummy index to make `apply` work
-  p = onehot(s_end => 1)
-  ψ̃[end] *= p
-  P[end] *= p
+
+  # Dummy index to make `apply` work
+  s_end = ntuple(_ -> Index(1, "Site"), ndims)
+  p = onehot.(s_end .=> 1)
+  for j in 1:ndims
+    ψ̃[end - ndims + j] *= p[j]
+    P[end - ndims + j] *= p[j]
+  end
+
   return apply(P, ψ̃; cutoff, kwargs...)
 end
 

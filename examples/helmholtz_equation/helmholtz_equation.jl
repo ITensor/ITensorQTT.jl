@@ -2,13 +2,29 @@ using ITensors
 using ITensorPartialDiffEq
 using JLD2
 using Plots
+using UnicodePlots
+
+using ITensorPartialDiffEq: siteinds_per_dimension
 
 ITensors.disable_warn_order()
+
+# https://discourse.julialang.org/t/iterator-over-upper-triangular-part-of-cartesian-product/63118
+function upper_trianguler_product(x)
+  return [(xᵢ, xⱼ) for (i, xᵢ) in enumerate(x) for xⱼ in Iterators.drop(x, i - 1)]
+end
+
+function product_tuple(x, D)
+  return vec(collect(Iterators.product(fill_tuple(x, D)...)))
+end
+
+fill_tuple(value, dim) = ntuple(Returns(value), dim)
+
+helmholtz_solver_filename(nk, n) = "helmholtz_solver_nk_$(nk)_n_$(n).jld2"
 
 """
 helmholtz_solver(0, 10) # Solve a single sin wave with 2^10 gridpoints
 """
-function helmholtz_solver(nk, n; init=nothing, solver_kwargs=(;))
+function helmholtz_solver(nk::Int, n::Int; init=nothing, solver_kwargs=(;))
   solver_kwargs = (;
     nsweeps=40,
     cutoff=1e-15,
@@ -64,7 +80,67 @@ function helmholtz_solver(nk, n; init=nothing, solver_kwargs=(;))
   return (; u, init, xi, xf, nk, solve_time, solver_kwargs)
 end
 
-helmholtz_solver_filename(nk, n) = "helmholtz_solver_nk_$(nk)_n_$(n).jld2"
+# ∇²u(x⃗) = Δu(x⃗) = -k²u(x⃗)
+# ∂²ₓ₁u(x₁,x₂) + ∂²ₓ₂u(x₁,x₂) = -k²u(x₁,x₂)
+# u(x₁,x₂) = sin(k₁x₁) sin(k₂x₂)
+#          = sin(2π * 2^nₖ₁ * x₁) sin(2π * 2^nₖ₂ * x₂)
+# λ = -k² = -k⃗⋅k⃗ = -(k₁² + k₂²) = -4π² * (2^2nₖ₁ + 2^2nₖ₂)
+function helmholtz_solver(n⃗ₖ::NTuple{D,Int}, n⃗::NTuple{D,Int}; init=nothing, solver_kwargs=(;)) where {D}
+  solver_kwargs = (;
+    nsweeps=40,
+    cutoff=1e-15,
+    outputlevel=1,
+    nsite=2,
+    solver_kwargs...
+  )
+  @assert allequal(n⃗)
+  @show n⃗ₖ, 2 .^ n⃗ₖ
+  @show n⃗, 2 .^ n⃗
+
+  x⃗start = fill_tuple(0, D)
+  x⃗stop = fill_tuple(1, D)
+
+  x⃗length = 2 .^ n⃗
+  x⃗step = 1 ./ x⃗length
+
+  @assert allequal(x⃗step)
+  xstep = first(x⃗step)
+
+  # Wavenumber
+  k⃗ = 2π .* 2 .^ n⃗ₖ
+
+  if isnothing(init)
+    s⃗ = siteinds.("Qubit", n⃗)
+    init = interleave(randomMPS.(s⃗)...)
+  else
+    s⃗ = siteinds_per_dimension(Val(D), init)
+  end
+
+  @show k⃗, k⃗ ./ 2π, -sum(k⃗ .^ 2)
+
+  A = @time laplacian_mpo(s⃗) #, x⃗step)
+
+  @show maxlinkdim(init)
+  @show maxlinkdim(A)
+
+  # @show inner(init', A, init) / inner(init, init)
+
+  @show solver_kwargs
+  u = dmrg_target(A, init; target_eigenvalue=-sum(k⃗ .^ 2) * xstep^2, solver_kwargs...)
+  @show maxlinkdim(u)
+  k_u² = @show -inner(u', A, u) / inner(u, u)
+  @show -k_u² / (2π), -sum(k⃗ .^ 2) * xstep^2 / (2π)
+  display(UnicodePlots.heatmap(mps_to_discrete_function(u, fill_tuple(10, D); maxdim=last(solver_kwargs.maxdim))))
+
+  @show integrate_mps(u)
+
+  n⃗plot = fill_tuple(2, D)
+  n⃗proj = n⃗ .- n⃗plot
+
+  u_proj = project_bits(u, zeros.(Int, n⃗proj))
+  display(UnicodePlots.heatmap(mps_to_discrete_function(Val(D), u_proj)))
+  return (; u) #, init, xi, xf, nk, solve_time, solver_kwargs)
+end
 
 """
 nks = 0:20
@@ -72,7 +148,7 @@ root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/helmholtz_solver"
 results_dir = joinpath(root_dir, "results")
 helmholtz_solver_run(nks, Dict([nk => (nk + 2):(nk + 13) for nk in nks]); results_dir)
 """
-function helmholtz_solver_run(nks, ns; results_dir, multigrid=true, solver_kwargs=(;))
+function helmholtz_solver_run(nks::Vector{Int}, ns::Dict{Int}; results_dir, multigrid=true, solver_kwargs=(;))
   if !isdir(results_dir)
     @warn "Making the directory path $(results_dir)"
     mkpath(results_dir)
@@ -95,6 +171,44 @@ function helmholtz_solver_run(nks, ns; results_dir, multigrid=true, solver_kwarg
       results = helmholtz_solver(nk, n; init, solver_kwargs)
       println("Saving to $(results_dir)")
       jldsave(joinpath(results_dir, helmholtz_solver_filename(nk, n)); results)
+    end
+  end
+end
+
+"""
+nₖ = 0:20 # 0:20
+D = 2
+# n⃗ₖs = product_tuple(nₖ, D)
+# n⃗ₖs = upper_trianguler_product(nₖ)
+n⃗ₖs = fill_tuple.(nₖ, D)
+root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/helmholtz_nd_solver"
+results_dir = joinpath(root_dir, "results")
+helmholtz_solver_run(n⃗ₖs, Dict([n⃗ₖ => (maximum(n⃗ₖ) + 2):(maximum(n⃗ₖ) + 13) for n⃗ₖ in n⃗ₖs]); results_dir, solver_kwargs=(; maxdim=4, nsweeps=10))
+"""
+function helmholtz_solver_run(n⃗ₖs::Vector{NTuple{D,Int}}, n⃗s::Dict{NTuple{D,Int}}; results_dir, multigrid=true, solver_kwargs=(;)) where {D}
+  if !isdir(results_dir)
+    @warn "Making the directory path $(results_dir)"
+    mkpath(results_dir)
+  end
+  for n⃗ₖ in n⃗ₖs
+    @show n⃗ₖ
+    for n in n⃗s[n⃗ₖ]
+      @show n
+      n⃗ = fill_tuple(n, D)
+      init = nothing
+      if multigrid
+        println("\nTry using state from length $(n⃗ .- 1) as starting state.")
+        init_filename = joinpath(results_dir, helmholtz_solver_filename(n⃗ₖ, n⃗ .- 1))
+        if !isfile(init_filename)
+          @warn "File $init_filename doesn't exist, a random starting state will be used instead."
+        else
+          init = load(init_filename, "results").u
+          init = prolongate(init, siteind.("Qubit", n⃗); maxdim=last(solver_kwargs.maxdim))
+        end
+      end
+      results = helmholtz_solver(n⃗ₖ, n⃗; init, solver_kwargs)
+      println("Saving to $(results_dir)")
+      jldsave(joinpath(results_dir, helmholtz_solver_filename(n⃗ₖ, n⃗)); results)
     end
   end
 end
@@ -438,7 +552,7 @@ function helmholtz_solver_plot_solutions(nks, ns, xstarts, zoom; results_dir, pl
 
         # Plot the original functions
         plot_u = plot(;
-                      title="Helmholtz solution, k = 2π * 2^$(nk), n = 2^$(n)",
+          title="Helmholtz solution, k = 2π * 2^$(nk), N = 2^$(n)",
           legend=:topleft,
           linewidth=3,
           xlabel="x",
@@ -469,4 +583,106 @@ function helmholtz_solver_plot_solutions(nks, ns, xstarts, zoom; results_dir, pl
       Plots.savefig(plot_u_diff, joinpath(plots_dir, "helmholtz_visualize_nk_$(nk)_ns_$(ns)_xstart_$(xstart)_zoom_$(zoom)_diff.pdf"))
     end
   end
+end
+
+# Take a float `x` in the range [0, 1]
+# and convert it to `n` bits.
+function float_to_bits(x::Float64, n::Int)
+  if x ≥ 1
+    # Catch overflow
+    bits = fill(1, n)
+  elseif x ≤ 0
+    # Catch underflow
+    bits = fill(0, n)
+  else
+    bits = reverse(digits(Int(round(x * 2^n)); base=2, pad=n))
+  end
+  return bits
+end
+
+function bits_to_xrange(bits, n, nproj, nplot)
+  xstart = sum([bits[j] * 2.0^(-j) for j in 1:nproj])
+  xstop = xstart + sum([2.0^(-j) for j in (nproj + 1):n])
+  return range(; start=xstart, stop=xstop, length=2^nplot)
+end
+
+"""
+n⃗ₖ = (20, 20)
+n⃗ = (33, 33)
+# x⃗ = (0.5, 0.5)
+x⃗s = product_tuple(0:0.5:1, 2)
+n⃗zoom = (-3, -3)
+root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/helmholtz_nd_solver"
+results_dir = joinpath(root_dir, "results")
+plots_dir = joinpath(root_dir, "plots")
+for x⃗ in x⃗s
+  helmholtz_solver_visualize_solution(n⃗ₖ, n⃗, x⃗, n⃗zoom; results_dir, plots_dir)
+end
+"""
+function helmholtz_solver_visualize_solution(
+  n⃗ₖ::NTuple{D,Int},
+  n⃗::NTuple{D,Int},
+  x⃗::Tuple,
+  n⃗zoom::NTuple{D,Int};
+  results_dir,
+  plots_dir
+) where {D}
+  if !isdir(plots_dir)
+    @warn "Making the directory path $(plots_dir)"
+    mkpath(plots_dir)
+  end
+
+  x⃗ = float.(x⃗)
+
+  titlefontsize = 9
+  labelfontsize = 10
+  tickfontsize = 7
+
+  results = load(joinpath(results_dir, helmholtz_solver_filename(n⃗ₖ, n⃗)), "results")
+  u = results.u
+  normalize!(u)
+  # Exact norm is:
+  # 2^((n - 1)/ 2)
+  @show norm(u)
+  u /= √2
+  u .*= √2
+
+  plot_u = Plots.heatmap(;
+     title="Helmholtz solution, k = 2π(2^$(n⃗ₖ[1]), 2^$(n⃗ₖ[2])), N = (2^$(n⃗[1]), 2^$(n⃗[2]))",
+    legend=:topleft,
+    linewidth=3,
+    xlabel="x",
+    ylabel="y",
+    zlabel="u(x, y)",
+    xformatter=:plain, # disable scientific notation
+    yformatter=:plain, # disable scientific notation
+    titlefontsize,
+    tickfontsize=tickfontsize,
+    xtickfontsize=tickfontsize,
+    ytickfontsize=tickfontsize,
+    ztickfontsize=tickfontsize,
+    xguidefontsize=labelfontsize,
+    yguidefontsize=labelfontsize,
+    zguidefontsize=labelfontsize,
+  )
+
+  # Number of points to plot
+  n⃗plot = (10, 10)
+
+  # Number of left bits to project
+  n⃗proj = n⃗ₖ .+ n⃗zoom
+
+  # Which left bits to project
+  left_bits = float_to_bits.(x⃗, n⃗)
+  left_bits = getindex.(left_bits, range.(1, n⃗proj))
+
+  x⃗range = bits_to_xrange.(left_bits, n⃗, n⃗proj, n⃗plot)
+  n⃗left = length.(left_bits)
+  n⃗right = n⃗ .- n⃗plot .- n⃗left
+  u_plot = project_bits(u, left_bits, n⃗right)
+  u_array = mps_to_discrete_function(Val(D), u_plot)
+
+  plot!(plot_u, x⃗range..., u_array)
+
+  Plots.savefig(plot_u, joinpath(plots_dir, "helmholtz_nd_visualize_nk_$(n⃗ₖ)_n_$(n⃗)_x_$(x⃗)_zoom_$(n⃗zoom).pdf"))
 end

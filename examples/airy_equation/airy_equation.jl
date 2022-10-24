@@ -356,6 +356,7 @@ function airy_solver(;
   β,
   seed=1234,
   init=nothing,
+  b_basis=false,
   linsolve_kwargs=(;)
 )
   linsolve_kwargs = (;
@@ -392,7 +393,11 @@ function airy_solver(;
 
   solve_time = @elapsed begin
     # Solve Au = b
-    u = linsolve(A, b, init; nsite=2, linsolve_kwargs...)
+    if b_basis
+      u = b_linsolve(A, b, init; nsite=2, linsolve_kwargs...)
+    else
+      u = linsolve(A, b, init; nsite=2, linsolve_kwargs...)
+    end
     # u = linsolve(A, b, u; nsite=1, linsolve_kwargs...)
   end
 
@@ -402,18 +407,19 @@ function airy_solver(;
 end
 
 """
-# nxfs = 1:2:3 # 1:2:11
-# ns = Dict(1 => 6:22, 3 => 6:22, 5 => 8:22, 7 => 11:22, 9 => 14:22, 11 => 17:22)
+b_basis = false
 nxfs = 1:2:11
-ns = Dict(1 => 2:22, 3 => 2:2, 5 => 2:22, 7 => 2:22, 9 => 2:22, 11 => 2:22)
-root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solver"
+ns = Dict(1 => 2:22, 3 => 2:22, 5 => 2:22, 7 => 2:22, 9 => 2:22, 11 => 2:22)
+root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl"
+root_dir = b_basis ? joinpath(root_dir, "airy_solver_b_basis") : joinpath(root_dir, "airy_solver")
 results_dir = joinpath(root_dir, "results")
-airy_solver_run(nxfs, ns; results_dir, save_results=true)
+airy_solver_run(nxfs, ns; results_dir, save_results=true, b_basis)
 """
 function airy_solver_run(nxfs, ns;
   results_dir,
   save_results,
   multigrid=true, # Use results from shorter system as starting state
+  b_basis,
   # Other parameters, shouldn't change
   α=1.0,
   β=1.0,
@@ -450,12 +456,14 @@ function airy_solver_run(nxfs, ns;
           @warn "File $init_filename doesn't exist, a random starting state will be used instead."
         else
           u_init = load_airy_results(; dirname=results_dir, xf=xf, n=(n - 1)).u
-          u_init = prolongate(u_init, siteind("Qubit", n))
+          @show maxlinkdim(u_init)
+          u_init = prolongate(u_init, siteind("Qubit", n); cutoff=1e-15)
+          @show maxlinkdim(u_init)
         end
       else
         @warn "Not saving results to file $filename."
       end
-      result = airy_solver(; xf, n, α, β, seed, init=u_init, linsolve_kwargs)
+      result = airy_solver(; xf, n, α, β, seed, init=u_init, b_basis, linsolve_kwargs)
       filename = airy_solver_filename(; dirname=results_dir, xf, n)
       if save_results
         println("\nSaving results to file $filename.")
@@ -471,11 +479,11 @@ function airy_solver_run(nxfs, ns;
 end
 
 """
-# nxfs = 1:2:3 # 1:2:11
-# ns = Dict(1 => 6:22, 3 => 6:22, 5 => 8:22, 7 => 11:22, 9 => 14:22, 11 => 17:22)
+b_basis = false
 nxfs = 1:2:11
-ns = Dict(1 => 2:22, 3 => 2:2, 5 => 2:22, 7 => 2:22, 9 => 2:22, 11 => 2:22)
-root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solver"
+ns = Dict(1 => 2:22, 3 => 2:22, 5 => 2:22, 7 => 2:22, 9 => 2:22, 11 => 2:22)
+root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl"
+root_dir = b_basis ? joinpath(root_dir, "airy_solver_b_basis") : joinpath(root_dir, "airy_solver")
 results_dir = joinpath(root_dir, "results")
 exact_results_dir = joinpath(root_dir, "..", "airy_solution_compression", "results")
 plots_dir = joinpath(root_dir, "plots")
@@ -584,28 +592,28 @@ function airy_solver_analyze(nxfs, ns; results_dir, exact_results_dir, plots_dir
   )
   for nxf in nxfs
     plot!(plot_error_linsolves, 2 .^ ns[nxf], abs.(error_linsolves[nxf]);
-      label="xf = 10^$(round(nxf * log10(2); digits=2))",
+      label="xf = $(2^nxf)",
       linewidth=3,
     )
     plot!(plot_error_diffs, 2 .^ ns[nxf], abs.(error_diffs[nxf]);
-      label="xf = 10^$(round(nxf * log10(2); digits=2))",
+      label="xf = $(2^nxf)",
       linewidth=3,
     )
     plot!(plot_maxlinkdims, 2 .^ ns[nxf], maxlinkdims[nxf];
-      label="xf = 10^$(round(nxf * log10(2); digits=2))",
+      label="xf = $(2^nxf)",
       linewidth=3,
     )
     plot!(plot_time, 2 .^ ns[nxf], solve_times[nxf];
-      label="xf = 10^$(round(nxf * log10(2); digits=2))",
+      label="xf = $(2^nxf)",
       linewidth=3,
     )
   end
 
   println("Saving plots to $(plots_dir)")
-  Plots.savefig(plot_error_linsolves, joinpath(plots_dir, "plot_error_linsolves.pdf"))
-  Plots.savefig(plot_error_diffs, joinpath(plots_dir, "plot_error_diffs.pdf"))
-  Plots.savefig(plot_maxlinkdims, joinpath(plots_dir, "plot_qtt_rank.pdf"))
-  Plots.savefig(plot_time, joinpath(plots_dir, "plot_solve_time.pdf"))
+  Plots.savefig(plot_error_linsolves, joinpath(plots_dir, "airy_solver_error_linsolves.pdf"))
+  Plots.savefig(plot_error_diffs, joinpath(plots_dir, "airy_solver_error_diffs.pdf"))
+  Plots.savefig(plot_maxlinkdims, joinpath(plots_dir, "airy_solver_qtt_rank.pdf"))
+  Plots.savefig(plot_time, joinpath(plots_dir, "airy_solver_solve_time.pdf"))
   return nothing
 end
 
