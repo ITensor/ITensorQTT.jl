@@ -1,5 +1,14 @@
 using ITensors: ProjMPS
 
+function LinearAlgebra.pinv(T::ITensor, left_inds...; kwargs...)
+  U, S, V = svd(T, left_inds...; kwargs...)
+  S⁻¹ = copy(S)
+  for j in 1:ITensors.diaglength(S)
+    S⁻¹[j, j] = inv(S[j, j])
+  end
+  return dag(U) * dag(S⁻¹) * dag(V)
+end
+
 function proj(P::ProjMPS)
   ϕ = prime(linkinds, P.M)
   p = ITensor(1.0)
@@ -21,6 +30,132 @@ function KrylovKit.linsolve(A::MPO, b::MPS, x₀::MPS, a₀::Number=0, a₁::Num
     A = PH.PH
     b = proj(only(PH.pm))
     x, info = linsolve(A, b, x₀, a₀, a₁; ishermitian, tol, krylovdim, maxiter)
+    return x, nothing
+  end
+  t = Inf
+  PH = ProjMPO_MPS(A, [b])
+  return tdvp(linsolve_solver, PH, t, x₀; reverse_step, kwargs...)
+end
+
+# Get `l * b * r`
+function get_b(P::ProjMPS)
+  # ϕ = prime(linkinds, P.M)
+  ϕ = P.M
+
+  b = ITensor(1.0)
+  for j in (P.lpos + 1):(P.rpos - 1)
+    b *= dag(ϕ[j])
+  end
+
+  l = ITensor(1.0)
+  !isnothing(lproj(P)) && (l *= lproj(P))
+
+  r = ITensor(1.0)
+  !isnothing(rproj(P)) && (r *= rproj(P))
+
+  return (; b=dag(b), l=dag(noprime(l)), r=dag(noprime(r)))
+end
+
+# Compute a solution x to the linear system:
+#
+# (a₀ + a₁ * A)*x = b
+#
+# using starting guess x₀.
+#
+# Solve using a pseudoinverse of `A`, helps when `A` is singular.
+# 
+# WARNING: currently scales as `chi^4` since it builds the full
+# matrix for the projected MPO A. Need to investigate Krylov-based
+# methods.
+function linsolve_pseudoinverse(A::MPO, b::MPS, x₀::MPS, a₀::Number=0, a₁::Number=1; reverse_step=false, tol=1e-5, krylovdim=20, maxiter=10, ishermitian=false, kwargs...)
+  function linsolve_solver(PH, t, x₀; kwargs...)
+    A = PH.PH
+    (; b, l, r) = get_b(only(PH.pm))
+
+    T = lproj(A)
+    for h in A.H[ITensors.site_range(A)]
+      T *= h
+    end
+    T *= rproj(A)
+
+    blr = (b * l * r)'
+    b_inds = inds(blr)
+    x_inds = inds(x₀)
+    Cb = combiner(b_inds)
+    cb = combinedind(Cb)
+    Cx = combiner(x_inds)
+    cx = combinedind(Cx)
+    T_mat = matrix(T * Cb * Cx, cb, cx)
+    b_vec = vector(blr * Cb)
+
+    F = svd(T_mat)
+    x_vec = svd(T_mat) \ b_vec
+    x = itensor(x_vec, cx) * dag(Cx)
+
+    return x, nothing
+  end
+  t = Inf
+  PH = ProjMPO_MPS(A, [b])
+  return tdvp(linsolve_solver, PH, t, x₀; reverse_step, kwargs...)
+end
+
+# Try some preconditioning, not working right now.
+function linsolve_precondition(A::MPO, b::MPS, x₀::MPS, a₀::Number=0, a₁::Number=1; reverse_step=false, tol=1e-5, krylovdim=20, maxiter=10, ishermitian=false, kwargs...)
+  function linsolve_solver(PH, t, x₀; kwargs...)
+    A = PH.PH
+    (; b, l, r) = get_b(only(PH.pm))
+
+    T = lproj(A)
+    for h in A.H[ITensors.site_range(A)]
+      T *= h
+    end
+    T *= rproj(A)
+
+    if order(l) > 0
+      l⁻¹ = pinv(l, ind(l, 1); cutoff=1e-15)
+    else
+      l⁻¹ = ITensor(inv(l[]))
+    end
+
+    if order(r) > 0
+      r⁻¹ = pinv(r, ind(r, 1); cutoff=1e-15)
+    else
+      r⁻¹ = ITensor(inv(r[]))
+    end
+
+    x̃₀ = x₀
+    # x̃₀ *= l⁻¹
+    # x̃₀ *= r⁻¹
+
+    T̃ = T
+    T̃ *= r⁻¹'
+    T̃ *= l⁻¹'
+    # T̃ *= r
+    # T̃ *= l
+
+    b = b'
+    b_inds = inds(b)
+    x_inds = inds(x̃₀)
+
+    # @show b_inds
+    # @show x_inds
+    # @show inds(T̃)
+
+    Cb = combiner(b_inds)
+    cb = combinedind(Cb)
+    Cx = combiner(x_inds)
+    cx = combinedind(Cx)
+    T_mat = matrix(T̃ * Cb * Cx, cb, cx)
+    b_vec = vector(b * Cb)
+    x_vec = svd(T_mat) \ b_vec
+    x̃ = itensor(x_vec, cx) * dag(Cx)
+
+    # x̃, info = linsolve(T̃, b, x̃₀, a₀, a₁; ishermitian, tol, krylovdim, maxiter)
+
+    x = x̃
+    # x *= l
+    # x *= r
+
     return x, nothing
   end
   t = Inf

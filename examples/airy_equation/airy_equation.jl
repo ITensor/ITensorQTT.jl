@@ -356,8 +356,8 @@ function airy_solver(;
   β,
   seed=1234,
   init=nothing,
-  b_basis=false,
-  linsolve_kwargs=(;)
+  variant="pseudoinverse",
+  linsolve_kwargs=(;),
 )
   linsolve_kwargs = (;
     nsweeps=10,
@@ -393,10 +393,14 @@ function airy_solver(;
 
   solve_time = @elapsed begin
     # Solve Au = b
-    if b_basis
-      u = b_linsolve(A, b, init; nsite=2, linsolve_kwargs...)
-    else
+    if variant == "pseudoinverse"
+      u = ITensorPartialDiffEq.linsolve_pseudoinverse(A, b, init; nsite=2, linsolve_kwargs...)
+    elseif variant == "b_basis"
+      u = b_linsolve(A, b, init; nsite=2, linsolve_kwargs..., ishermitian=false)
+    elseif isnothing(variant)
       u = linsolve(A, b, init; nsite=2, linsolve_kwargs...)
+    else
+      error("linsolve variant $variant not supported")
     end
     # u = linsolve(A, b, u; nsite=1, linsolve_kwargs...)
   end
@@ -407,19 +411,21 @@ function airy_solver(;
 end
 
 """
-b_basis = false
-nxfs = 1:2:11
-ns = Dict(1 => 2:22, 3 => 2:22, 5 => 2:22, 7 => 2:22, 9 => 2:22, 11 => 2:22)
-root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl"
-root_dir = b_basis ? joinpath(root_dir, "airy_solver_b_basis") : joinpath(root_dir, "airy_solver")
+variant = "pseudoinverse" # [nothing, "pseudoinverse", "b_basis"]
+nxfs = 1:2:7 # 1:2:11
+ns = Dict([nxf => 2:22 for nxf in nxfs])
+root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solver"
+if !isnothing(variant)
+  root_dir *= "_" * variant
+end
 results_dir = joinpath(root_dir, "results")
-airy_solver_run(nxfs, ns; results_dir, save_results=true, b_basis)
+airy_solver_run(nxfs, ns; results_dir, save_results=true, variant)
 """
 function airy_solver_run(nxfs, ns;
   results_dir,
   save_results,
   multigrid=true, # Use results from shorter system as starting state
-  b_basis,
+  variant="pseudoinverse",
   # Other parameters, shouldn't change
   α=1.0,
   β=1.0,
@@ -427,7 +433,7 @@ function airy_solver_run(nxfs, ns;
   linsolve_kwargs=(;),
 )
   linsolve_kwargs = (;
-    nsweeps=30,
+    nsweeps=10,
     cutoff=1e-15,
     outputlevel=1,
     tol=1e-15,
@@ -463,7 +469,7 @@ function airy_solver_run(nxfs, ns;
       else
         @warn "Not saving results to file $filename."
       end
-      result = airy_solver(; xf, n, α, β, seed, init=u_init, b_basis, linsolve_kwargs)
+      result = airy_solver(; xf, n, α, β, seed, init=u_init, variant, linsolve_kwargs)
       filename = airy_solver_filename(; dirname=results_dir, xf, n)
       if save_results
         println("\nSaving results to file $filename.")
@@ -479,11 +485,13 @@ function airy_solver_run(nxfs, ns;
 end
 
 """
-b_basis = false
-nxfs = 1:2:11
-ns = Dict(1 => 2:22, 3 => 2:22, 5 => 2:22, 7 => 2:22, 9 => 2:22, 11 => 2:22)
-root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl"
-root_dir = b_basis ? joinpath(root_dir, "airy_solver_b_basis") : joinpath(root_dir, "airy_solver")
+variant = "pseudoinverse" # [nothing, "pseudoinverse", "b_basis"]
+nxfs = 1:2:7 # 1:2:11
+ns = Dict([nxf => 2:22 for nxf in nxfs])
+root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solver"
+if !isnothing(variant)
+  root_dir *= "_" * variant
+end
 results_dir = joinpath(root_dir, "results")
 exact_results_dir = joinpath(root_dir, "..", "airy_solution_compression", "results")
 plots_dir = joinpath(root_dir, "plots")
@@ -618,9 +626,13 @@ function airy_solver_analyze(nxfs, ns; results_dir, exact_results_dir, plots_dir
 end
 
 """
+variant = "pseudoinverse" # [nothing, "pseudoinverse", "b_basis"]
 nk = 18
 n = 32 # 28:34
 root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solver"
+if !isnothing(variant)
+  root_dir *= "_" * variant
+end
 results_dir = joinpath(root_dir, "results")
 exact_results_dir = joinpath(root_dir, "..", "airy_solution_compression", "results")
 airy_solver_visualize_solution(nk, n, 0.75, -1; results_dir, exact_results_dir, plots_dir)
@@ -717,22 +729,15 @@ function airy_solver_visualize_solution(xf::Int, n::Int, proj::Vector{Int}; resu
 end
 
 """
-nxfs = 5:2:11
-ns = 22 #[30, 32, 34] # 28:34
-xstarts = 0:0.125:1.0
-zoom = -1
-
-nxfs = 5
+variant = "pseudoinverse" # [nothing, "pseudoinverse", "b_basis"]
+nxfs = 1:2:7
 ns = 22
-xstarts = 0.0
-zoom = -5
-
-nxfs = 11
-ns = 22
-xstarts = [1/16, 15/16]
+xstarts = 0:0.25:1.0
 zoom = -1
-
 root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solver"
+if !isnothing(variant)
+  root_dir *= "_" * variant
+end
 results_dir = joinpath(root_dir, "results")
 exact_results_dir = joinpath(root_dir, "..", "airy_solution_compression", "results")
 plots_dir = joinpath(root_dir, "plots")
@@ -741,16 +746,16 @@ airy_solver_plot_solutions(2 .^ nxfs, ns, xstarts, zoom; results_dir, exact_resu
 function airy_solver_plot_solutions(xfs, ns, xstarts, zoom; results_dir, exact_results_dir, plots_dir)
   for xf in xfs
     for xstart in xstarts
-##       plot_u_diff = plot(;
-##         title="Airy solution error, k = 2π * 2^$(xf)",
-##         legend=:bottomright,
-##         linewidth=3,
-##         xlabel="x",
-##         ylabel="|u(x) - sin(kx)|",
-##         yaxis=:log,
-##         xformatter=:plain, # disable scientific notation
-##         yrange=[1e-8, 1e-2],
-##       )
+      plot_u_diff = plot(;
+        title="Airy solution error, xf = $(xf)",
+        legend=:bottomright,
+        linewidth=3,
+        xlabel="x",
+        ylabel="|u(x) - ũ(x)|",
+        yaxis=:log,
+        xformatter=:plain, # disable scientific notation
+        yrange=[1e-8, 1e-2],
+      )
       for n in ns
         (; xrange, u_vec, u_exact_vec) = airy_solver_visualize_solution(; xf, n, xstart, zoom, results_dir, exact_results_dir)
 
@@ -774,12 +779,12 @@ function airy_solver_plot_solutions(xfs, ns, xstarts, zoom; results_dir, exact_r
         Plots.savefig(plot_u, joinpath(plots_dir, "airy_visualize_xf_$(xf)_n_$(n)_xstart_$(xstart)_zoom_$(zoom)_qtt.pdf"))
 
         # Plot the error
-##        plot!(plot_u_diff, xrange, abs.(u_vec - u_exact_vec);
-##          label="2^$n gridpoints",
-##          linewidth=3,
-##        )
+        plot!(plot_u_diff, xrange, abs.(u_vec - u_exact_vec);
+          label="2^$n gridpoints",
+          linewidth=3,
+        )
       end
-##      Plots.savefig(plot_u_diff, joinpath(plots_dir, "airy_visualize_xf_$(xf)_ns_$(ns)_xstart_$(xstart)_zoom_$(zoom)_diff.pdf"))
+      Plots.savefig(plot_u_diff, joinpath(plots_dir, "airy_visualize_xf_$(xf)_ns_$(ns)_xstart_$(xstart)_zoom_$(zoom)_diff.pdf"))
     end
   end
 end

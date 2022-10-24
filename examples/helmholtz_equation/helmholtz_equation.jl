@@ -85,7 +85,7 @@ end
 # u(x₁,x₂) = sin(k₁x₁) sin(k₂x₂)
 #          = sin(2π * 2^nₖ₁ * x₁) sin(2π * 2^nₖ₂ * x₂)
 # λ = -k² = -k⃗⋅k⃗ = -(k₁² + k₂²) = -4π² * (2^2nₖ₁ + 2^2nₖ₂)
-function helmholtz_solver(n⃗ₖ::NTuple{D,Int}, n⃗::NTuple{D,Int}; init=nothing, solver_kwargs=(;)) where {D}
+function helmholtz_solver(n⃗ₖ::NTuple{D,Int}, n⃗::NTuple{D,Int}; init=nothing, linsolve, solver_kwargs=(;)) where {D}
   solver_kwargs = (;
     nsweeps=40,
     cutoff=1e-15,
@@ -126,7 +126,14 @@ function helmholtz_solver(n⃗ₖ::NTuple{D,Int}, n⃗::NTuple{D,Int}; init=noth
   # @show inner(init', A, init) / inner(init, init)
 
   @show solver_kwargs
-  u = dmrg_target(A, init; target_eigenvalue=-sum(k⃗ .^ 2) * xstep^2, solver_kwargs...)
+  if linsolve
+    λ̃ = -sum(k⃗ .^ 2) * xstep^2
+    Ã = convert(MPO, -(A, λ * interleave.(MPO.("I", s⃗)); alg="directsum"))
+    b = boundary_value_mps(1/√2, 1/√2, only(s⃗))
+    u = linsolve(Ã, b, init; solver_kwargs...)
+  else
+    u = dmrg_target(A, init; target_eigenvalue=-sum(k⃗ .^ 2) * xstep^2, solver_kwargs...)
+  end
   @show maxlinkdim(u)
   k_u² = @show -inner(u', A, u) / inner(u, u)
   @show -k_u² / (2π), -sum(k⃗ .^ 2) * xstep^2 / (2π)
