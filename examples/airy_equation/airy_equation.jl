@@ -5,6 +5,7 @@ using Plots
 using Random
 using UnicodePlots
 using FFTW
+using MKL
 
 ITensors.disable_warn_order()
 
@@ -412,7 +413,7 @@ end
 
 """
 variant = "pseudoinverse" # [nothing, "pseudoinverse", "b_basis"]
-nxfs = 11:11 # 1:2:9
+nxfs = 1:10 # 1:10
 ns = Dict([nxf => 2:22 for nxf in nxfs])
 root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solver"
 if !isnothing(variant)
@@ -433,7 +434,7 @@ function airy_solver_run(nxfs, ns;
   linsolve_kwargs=(;),
 )
   linsolve_kwargs = (;
-    nsweeps=12,
+    nsweeps=10,
     cutoff=1e-15,
     outputlevel=1,
     tol=1e-15,
@@ -486,7 +487,7 @@ end
 
 """
 variant = "pseudoinverse" # [nothing, "pseudoinverse", "b_basis"]
-nxfs = 1:2:9
+nxfs = 2:2:10
 ns = Dict([nxf => 2:22 for nxf in nxfs])
 root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solver"
 if !isnothing(variant)
@@ -586,6 +587,7 @@ function airy_solver_analyze(nxfs, ns; results_dir, exact_results_dir, plots_dir
     title="Airy QTT solver",
     legend=:topleft,
     xaxis=:log,
+    yaxis=:log,
     linewidth=3,
     xlabel="Number of gridpoints",
     ylabel="QTT Rank",
@@ -608,21 +610,34 @@ function airy_solver_analyze(nxfs, ns; results_dir, exact_results_dir, plots_dir
       label="xf = $(2^nxf)",
       linewidth=3,
     )
-    plot!(plot_maxlinkdims, 2 .^ ns[nxf], maxlinkdims[nxf];
-      label="xf = $(2^nxf)",
-      linewidth=3,
-    )
   end
 
+  # Plot final ranks
+  x = 2 .^ nxfs
+  y = [last(maxlinkdims[nxf]) for nxf in nxfs]
+  a, b = linreg(nxfs * log10(2), log10.(y))
+  yfit = (10 ^ a) * x .^ b
+  plot!(plot_maxlinkdims, x, y;
+    label="QTT rank",
+    linewidth=3,
+  )
+  plot!(plot_maxlinkdims, x, yfit;
+        label="Best fit: $(round(10^a; digits=2)) xf ^ $(round(b; digits=2))",
+        linewidth=3,
+        linestyle=:dash,
+       )
+
+  # Plot final times
   x = 2 .^ nxfs
   y = [last(solve_times[nxf]) for nxf in nxfs]
+  n_nxfs = length(nxfs)
+  a, b = linreg(nxfs[n_nxfs÷2:end] * log10(2), log10.(y[n_nxfs÷2:end]))
+  yfit = (10 ^ a) * x .^ b
   plot!(plot_time, x, y;
     label="Time to solve",
     linewidth=3,
   )
-
-  a, b = linreg(nxfs * log10(2), log10.(y))
-  plot!(plot_time, x, 10 ^ a * (2 .^ (nxfs * b));
+  plot!(plot_time, x, yfit;
         label="Best fit: $(round(10^a; digits=2)) xf ^ $(round(b; digits=2))",
         linewidth=3,
         linestyle=:dash,
@@ -741,7 +756,7 @@ end
 
 """
 variant = "pseudoinverse" # [nothing, "pseudoinverse", "b_basis"]
-nxfs = 1:2:9
+nxfs = 1:10
 ns = 20:22
 xstarts = 0:0.5:1.0
 zoom = -2
@@ -765,7 +780,7 @@ function airy_solver_plot_solutions(xfs, ns, xstarts, zoom; results_dir, exact_r
         ylabel="|u(x) - ũ(x)|",
         yaxis=:log,
         xformatter=:plain, # disable scientific notation
-        yrange=[1e-8, 1e-2],
+        yrange=[1e-8, 1e-1],
       )
       for n in ns
         (; xrange, u_vec, u_exact_vec) = airy_solver_visualize_solution(; xf, n, xstart, zoom, results_dir, exact_results_dir)
