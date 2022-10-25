@@ -60,6 +60,8 @@ function interleave(ψ₁::AbstractMPS, ψ₂::AbstractMPS)
   end
   return combine_linkinds(ψ̃)
 end
+interleave(ψ₁::AbstractMPS, ψ₂::AbstractMPS, ψ₃::AbstractMPS, ψ::AbstractMPS...) = error("Not implemented")
+interleave(ψ::AbstractMPS) = ψ
 
 function interleave(x::Vector{T}, y::Vector{T}) where {T}
   @assert length(x) == length(y)
@@ -71,10 +73,7 @@ function interleave(x::Vector{T}, y::Vector{T}) where {T}
   end
   return z
 end
-
-interleave(ψ::AbstractMPS) = ψ
-
-interleave(ψ₁::AbstractMPS, ψ₂::AbstractMPS, ψ₃::AbstractMPS, ψ::AbstractMPS...) = error("Not implemented")
+interleave(x::Vector) = x
 
 function siteinds_per_dimension(::Val{ndims}, ψ::MPS) where {ndims}
   s = siteinds(ψ)

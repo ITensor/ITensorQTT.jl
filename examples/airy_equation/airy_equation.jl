@@ -412,7 +412,7 @@ end
 
 """
 variant = "pseudoinverse" # [nothing, "pseudoinverse", "b_basis"]
-nxfs = 1:2:7 # 1:2:11
+nxfs = 11:11 # 1:2:9
 ns = Dict([nxf => 2:22 for nxf in nxfs])
 root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solver"
 if !isnothing(variant)
@@ -433,7 +433,7 @@ function airy_solver_run(nxfs, ns;
   linsolve_kwargs=(;),
 )
   linsolve_kwargs = (;
-    nsweeps=10,
+    nsweeps=12,
     cutoff=1e-15,
     outputlevel=1,
     tol=1e-15,
@@ -486,7 +486,7 @@ end
 
 """
 variant = "pseudoinverse" # [nothing, "pseudoinverse", "b_basis"]
-nxfs = 1:2:7 # 1:2:11
+nxfs = 1:2:9
 ns = Dict([nxf => 2:22 for nxf in nxfs])
 root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solver"
 if !isnothing(variant)
@@ -594,8 +594,9 @@ function airy_solver_analyze(nxfs, ns; results_dir, exact_results_dir, plots_dir
     title="Airy QTT solver",
     legend=:topleft,
     xaxis=:log,
+    yaxis=:log,
     linewidth=3,
-    xlabel="Number of gridpoints",
+    xlabel="xf",
     ylabel="Time to solve (seconds)",
   )
   for nxf in nxfs
@@ -611,11 +612,21 @@ function airy_solver_analyze(nxfs, ns; results_dir, exact_results_dir, plots_dir
       label="xf = $(2^nxf)",
       linewidth=3,
     )
-    plot!(plot_time, 2 .^ ns[nxf], solve_times[nxf];
-      label="xf = $(2^nxf)",
-      linewidth=3,
-    )
   end
+
+  x = 2 .^ nxfs
+  y = [last(solve_times[nxf]) for nxf in nxfs]
+  plot!(plot_time, x, y;
+    label="Time to solve",
+    linewidth=3,
+  )
+
+  a, b = linreg(nxfs * log10(2), log10.(y))
+  plot!(plot_time, x, 10 ^ a * (2 .^ (nxfs * b));
+        label="Best fit: $(round(10^a; digits=2)) xf ^ $(round(b; digits=2))",
+        linewidth=3,
+        linestyle=:dash,
+       )
 
   println("Saving plots to $(plots_dir)")
   Plots.savefig(plot_error_linsolves, joinpath(plots_dir, "airy_solver_error_linsolves.pdf"))
@@ -730,10 +741,10 @@ end
 
 """
 variant = "pseudoinverse" # [nothing, "pseudoinverse", "b_basis"]
-nxfs = 1:2:7
-ns = 22
-xstarts = 0:0.25:1.0
-zoom = -1
+nxfs = 1:2:9
+ns = 20:22
+xstarts = 0:0.5:1.0
+zoom = -2
 root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solver"
 if !isnothing(variant)
   root_dir *= "_" * variant

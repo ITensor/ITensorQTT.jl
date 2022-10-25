@@ -88,8 +88,9 @@ function linsolve_pseudoinverse(A::MPO, b::MPS, x₀::MPS, a₀::Number=0, a₁:
     T_mat = matrix(T * Cb * Cx, cb, cx)
     b_vec = vector(blr * Cb)
 
-    F = svd(T_mat)
-    x_vec = svd(T_mat) \ b_vec
+    # F = svd(T_mat)
+    F = qr!(T_mat)
+    x_vec = F \ b_vec
     x = itensor(x_vec, cx) * dag(Cx)
 
     return x, nothing
