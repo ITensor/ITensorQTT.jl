@@ -1,9 +1,9 @@
-using ITensorPartialDiffEq
+using ITensorQTT
 using ITensors
 using HCubature
 using Test
 
-@testset "ITensorPartialDiffEq.jl" begin
+@testset "ITensorQTT.jl" begin
   @testset "MPS vcat" begin
     n = 4
     s = siteinds("S=1/2", n)
@@ -26,7 +26,7 @@ using Test
     s = siteinds("S=1/2", n)
     ψ = randomMPS(s)
     ϕ = randomMPS(s)
-    ρ = ITensorPartialDiffEq.interleave(ψ, ϕ)
+    ρ = ITensorQTT.interleave(ψ, ϕ)
     @test length(ρ) == 2n
     @test contract(ψ) * contract(ϕ) ≈ contract(ρ)
   end
@@ -140,16 +140,16 @@ using Test
     nbits = 3
 
     # xstep = 1.0
-    A = ITensorPartialDiffEq.laplacian_matrix(2^nbits)
+    A = ITensorQTT.laplacian_matrix(2^nbits)
     s = siteinds("Qubit", nbits)
     M = laplacian_mpo(s)
-    @test ITensorPartialDiffEq.mpo_to_mat(M) ≈ A
+    @test ITensorQTT.mpo_to_mat(M) ≈ A
 
     xstep = 1 / 2^nbits
-    A = ITensorPartialDiffEq.laplacian_matrix(2^nbits, xstep)
+    A = ITensorQTT.laplacian_matrix(2^nbits, xstep)
     s = siteinds("Qubit", nbits)
     M = laplacian_mpo(s, xstep)
-    @test ITensorPartialDiffEq.mpo_to_mat(M) ≈ A
+    @test ITensorQTT.mpo_to_mat(M) ≈ A
   end
 
   @testset "Function integration - 1-dimensional" begin

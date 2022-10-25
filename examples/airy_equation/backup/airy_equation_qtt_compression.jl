@@ -1,9 +1,9 @@
 using ITensors
-using ITensorPartialDiffEq
+using ITensorQTT
 using JLD2
 using Plots
 
-using ITensorPartialDiffEq: vec_to_mps
+using ITensorQTT: vec_to_mps
 
 ITensors.disable_warn_order()
 

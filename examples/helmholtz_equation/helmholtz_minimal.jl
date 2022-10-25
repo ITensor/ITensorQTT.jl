@@ -1,5 +1,5 @@
 using ITensors
-using ITensorPartialDiffEq
+using ITensorQTT
 
 k = 2π * 2^18
 n = 21

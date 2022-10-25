@@ -9,7 +9,7 @@ include("airy_equation.jl")
 nxfs = 1:20 # xf in [2^1, 2^2, ..., 2^20]
 ns = 1:5 # n in [2^1, 2^2, ..., 2^22]
 α, β = 1.0, 1.0 # Boundary conditions `u(xi) = α Ai(-xi) + β Bi(-xi)`, `u(xf) = α Ai(-xf) + β Bi(-xf)`
-root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solution_compression"
+root_dir = "$(ENV["HOME"])/workdir/ITensorQTT.jl/airy_solution_compression"
 results_dir = joinpath(root_dir, "results")
 cutoff = 1e-15 # QTT/MPS compression cutoff
 airy_qtt_compression_get_results(nxfs, ns; α, β, results_dir, cutoff)
@@ -21,7 +21,7 @@ include("airy_equation.jl")
 nxfs = 1:2:11
 ns = Dict(1 => 6:22, 3 => 6:22, 5 => 8:22, 7 => 11:22, 9 => 14:22, 11 => 17:22)
 best_fit_points = Dict(1 => 6:16, 3 => 6:18, 5 => 8:20, 7 => 12:21, 9 => 18:22, 11 => 20:22)
-root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/airy_solution_compression"
+root_dir = "$(ENV["HOME"])/workdir/ITensorQTT.jl/airy_solution_compression"
 results_dir = joinpath(root_dir, "results")
 plots_dir = joinpath(root_dir, "results")
 airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, best_fit_points)

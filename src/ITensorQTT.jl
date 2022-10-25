@@ -1,4 +1,4 @@
-module ITensorPartialDiffEq
+module ITensorQTT
 
 using LinearAlgebra # SymTridiagonal
 using ITensors

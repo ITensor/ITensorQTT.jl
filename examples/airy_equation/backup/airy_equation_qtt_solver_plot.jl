@@ -1,5 +1,5 @@
 using ITensors
-using ITensorPartialDiffEq
+using ITensorQTT
 using Plots
 using UnicodePlots
 

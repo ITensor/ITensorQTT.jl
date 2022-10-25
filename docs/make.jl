@@ -1,16 +1,16 @@
-using ITensorPartialDiffEq
+using ITensorQTT
 using Documenter
 
-DocMeta.setdocmeta!(ITensorPartialDiffEq, :DocTestSetup, :(using ITensorPartialDiffEq); recursive=true)
+DocMeta.setdocmeta!(ITensorQTT, :DocTestSetup, :(using ITensorQTT); recursive=true)
 
 makedocs(;
-    modules=[ITensorPartialDiffEq],
+    modules=[ITensorQTT],
     authors="Matthew Fishman <mfishman@flatironinstitute.org> and contributors",
-    repo="https://github.com/mtfishman/ITensorPartialDiffEq.jl/blob/{commit}{path}#{line}",
-    sitename="ITensorPartialDiffEq.jl",
+    repo="https://github.com/mtfishman/ITensorQTT.jl/blob/{commit}{path}#{line}",
+    sitename="ITensorQTT.jl",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://mtfishman.github.io/ITensorPartialDiffEq.jl",
+        canonical="https://mtfishman.github.io/ITensorQTT.jl",
         edit_link="main",
         assets=String[],
     ),
@@ -20,6 +20,6 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/mtfishman/ITensorPartialDiffEq.jl",
+    repo="github.com/mtfishman/ITensorQTT.jl",
     devbranch="main",
 )

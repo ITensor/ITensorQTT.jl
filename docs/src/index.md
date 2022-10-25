@@ -1,14 +1,14 @@
 ```@meta
-CurrentModule = ITensorPartialDiffEq
+CurrentModule = ITensorQTT
 ```
 
-# ITensorPartialDiffEq
+# ITensorQTT
 
-Documentation for [ITensorPartialDiffEq](https://github.com/mtfishman/ITensorPartialDiffEq.jl).
+Documentation for [ITensorQTT](https://github.com/mtfishman/ITensorQTT.jl).
 
 ```@index
 ```
 
 ```@autodocs
-Modules = [ITensorPartialDiffEq]
+Modules = [ITensorQTT]
 ```

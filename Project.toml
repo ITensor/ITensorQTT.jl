@@ -1,4 +1,4 @@
-name = "ITensorPartialDiffEq"
+name = "ITensorQTT"
 uuid = "574676e4-6e8a-454e-8957-4bd907a7d854"
 authors = ["Matthew Fishman <mfishman@flatironinstitute.org> and contributors"]
 version = "0.0.1"

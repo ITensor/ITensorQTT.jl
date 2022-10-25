@@ -1,10 +1,10 @@
 using ITensors
-using ITensorPartialDiffEq
+using ITensorQTT
 using JLD2
 using Plots
 using UnicodePlots
 
-using ITensorPartialDiffEq: siteinds_per_dimension
+using ITensorQTT: siteinds_per_dimension
 
 ITensors.disable_warn_order()
 
@@ -151,7 +151,7 @@ end
 
 """
 nks = 0:20
-root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/helmholtz_solver"
+root_dir = "$(ENV["HOME"])/workdir/ITensorQTT.jl/helmholtz_solver"
 results_dir = joinpath(root_dir, "results")
 helmholtz_solver_run(nks, Dict([nk => (nk + 2):(nk + 13) for nk in nks]); results_dir)
 """
@@ -188,7 +188,7 @@ D = 2
 # n⃗ₖs = product_tuple(nₖ, D)
 # n⃗ₖs = upper_trianguler_product(nₖ)
 n⃗ₖs = fill_tuple.(nₖ, D)
-root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/helmholtz_nd_solver"
+root_dir = "$(ENV["HOME"])/workdir/ITensorQTT.jl/helmholtz_nd_solver"
 results_dir = joinpath(root_dir, "results")
 helmholtz_solver_run(n⃗ₖs, Dict([n⃗ₖ => (maximum(n⃗ₖ) + 2):(maximum(n⃗ₖ) + 13) for n⃗ₖ in n⃗ₖs]); results_dir, solver_kwargs=(; maxdim=4, nsweeps=10))
 """
@@ -222,7 +222,7 @@ end
 
 """
 nks = 0:5:20
-root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/helmholtz_solver"
+root_dir = "$(ENV["HOME"])/workdir/ITensorQTT.jl/helmholtz_solver"
 results_dir = joinpath(root_dir, "results")
 plots_dir = joinpath(root_dir, "plots")
 helmholtz_solver_analyze(nks, Dict([nk => (nk + 2):(nk + 13) for nk in nks]); results_dir, plots_dir)
@@ -439,7 +439,7 @@ end
 """
 nk = 18
 n = 32 # 28:34
-root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/helmholtz_solver"
+root_dir = "$(ENV["HOME"])/workdir/ITensorQTT.jl/helmholtz_solver"
 results_dir = joinpath(root_dir, "results")
 helmholtz_solver_visualize_solution(nk, n, 0.75, -1; results_dir, plots_dir)
 """
@@ -528,7 +528,7 @@ nks = 18:18
 ns = [30, 32, 34] # 28:34
 xstarts = 0:0.5:1.0
 zoom = -2
-root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/helmholtz_solver"
+root_dir = "$(ENV["HOME"])/workdir/ITensorQTT.jl/helmholtz_solver"
 results_dir = joinpath(root_dir, "results")
 plots_dir = joinpath(root_dir, "plots")
 helmholtz_solver_plot_solutions(nks, ns, xstarts, zoom; results_dir, plots_dir)
@@ -619,7 +619,7 @@ n⃗ = (33, 33)
 # x⃗ = (0.5, 0.5)
 x⃗s = product_tuple(0:0.5:1, 2)
 n⃗zoom = (-3, -3)
-root_dir = "$(ENV["HOME"])/workdir/ITensorPartialDiffEq.jl/helmholtz_nd_solver"
+root_dir = "$(ENV["HOME"])/workdir/ITensorQTT.jl/helmholtz_nd_solver"
 results_dir = joinpath(root_dir, "results")
 plots_dir = joinpath(root_dir, "plots")
 for x⃗ in x⃗s

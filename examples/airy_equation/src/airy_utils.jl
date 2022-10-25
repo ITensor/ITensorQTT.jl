@@ -1,5 +1,5 @@
 using ITensors
-using ITensorPartialDiffEq
+using ITensorQTT
 using SpecialFunctions
 using LinearAlgebra
 using JLD2
