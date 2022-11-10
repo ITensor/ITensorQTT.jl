@@ -30,16 +30,34 @@ linreg(ns, log2.(integral_err)) # ∫dx |u(x) - ũ(x)|²
 # Resource scaling with constant integral error `∫dx |u(x) - ũ(x)|²`:
 # N = 2 * xf²
 # log₂(N) = n = log₂(2 * xf²) = log₂(xf²) + log₂(2) = 2 * log₂(xf) + 1 = 2nxf + 1
-nxfs = 1:8 #1:12
-res = @time [airy_compare_to_matrix(2nxf + 1; α, β, xi, xf=2^nxf, fft_cutoff=3.0) for nxf in nxfs]
+xi = 1.0
+α, β = 1.0, 1.0
+nxfs = 8:18 #1:12
+# ns = 2 * nxfs .+ 1
+n = 24
+res = @time [airy_compare_to_matrix(n; α, β, xi, xf=2^nxf, fft_cutoff=2.0) for nxf in nxfs]
 airy_err = getindex.(res, :linsolve_error)
 integral_err = getindex.(res, :diff)
 
 # Fourier transform results
-Ns = log2.(getindex.(res, :N))
+# Ns = log2.(getindex.(res, :N))
 nnz_ffts = log2.(getindex.(res, :nnz_fft))
-linreg(Ns, nnz_ffts)
-lineplot(Ns, nnz_ffts)
+linreg(nxfs[6:end], nnz_ffts[6:end])
+lineplot(nxfs, nnz_ffts)
+lineplot(nxfs[6:end], nnz_ffts[6:end])
+
+11-element Vector{NamedTuple{(:nnz_fft, :N, :linsolve_error, :diff), Tuple{Int64, Int64, Float64, Float64}}}:
+ (nnz_fft = 1518645, N = 16777216, linsolve_error = 3.8914042263979506e-13, diff = 4.2067034701860605e-9)
+ (nnz_fft = 1173833, N = 16777216, linsolve_error = 7.891293103643847e-13, diff = 2.342124587755427e-10)
+ (nnz_fft = 1139261, N = 16777216, linsolve_error = 1.595166684689238e-12, diff = 3.551894010994784e-8)
+ (nnz_fft = 1072547, N = 16777216, linsolve_error = 4.527234370910975e-12, diff = 7.306254485710334e-6)
+ (nnz_fft = 1313359, N = 16777216, linsolve_error = 8.702383049023562e-11, diff = 0.0030263144627137983)
+ (nnz_fft = 1124611, N = 16777216, linsolve_error = 4.374357792172517e-9, diff = 0.021154863087056816)
+ (nnz_fft = 1240851, N = 16777216, linsolve_error = 2.347608167809103e-7, diff = 0.003456679605029512)
+ (nnz_fft = 1980573, N = 16777216, linsolve_error = 1.2600473561320062e-5, diff = 0.002674311285221036)
+ (nnz_fft = 5383529, N = 16777216, linsolve_error = 0.0006638390691311213, diff = 0.00978754077292706)
+ (nnz_fft = 15149763, N = 16777216, linsolve_error = 0.030201205602800298, diff = 0.0015209923368032505)
+ (nnz_fft = 16700428, N = 16777216, linsolve_error = 0.544138840200653, diff = 0.0007752530582617031)
 """
 function airy_compare_to_matrix(n; α, β, xi, xf, fft_cutoff=1.0)
   α, β = (α, β) ./ norm((α, β))
@@ -397,7 +415,7 @@ function airy_solver(;
     if variant == "pseudoinverse"
       u = ITensorQTT.linsolve_pseudoinverse(A, b, init; nsite=2, linsolve_kwargs...)
     elseif variant == "b_basis"
-      u = b_linsolve(A, b, init; nsite=2, linsolve_kwargs..., ishermitian=false)
+      u = b_linsolve(A, b, u; nsite=2, linsolve_kwargs..., ishermitian=false, nsweeps=1)
     elseif isnothing(variant)
       u = linsolve(A, b, init; nsite=2, linsolve_kwargs...)
     else
@@ -412,8 +430,9 @@ function airy_solver(;
 end
 
 """
-variant = "pseudoinverse" # [nothing, "pseudoinverse", "b_basis"]
-nxfs = 1:10 # 1:10
+# variant = "pseudoinverse" # [nothing, "pseudoinverse", "b_basis"]
+variant = "b_basis"
+nxfs = 1:1 # 1:10
 ns = Dict([nxf => 2:22 for nxf in nxfs])
 root_dir = "$(ENV["HOME"])/workdir/ITensorQTT.jl/airy_solver"
 if !isnothing(variant)
@@ -486,15 +505,17 @@ function airy_solver_run(nxfs, ns;
 end
 
 """
-variant = "pseudoinverse" # [nothing, "pseudoinverse", "b_basis"]
-nxfs = 2:2:10
+# variant = "pseudoinverse" # [nothing, "pseudoinverse", "b_basis"]
+variant = "b_basis"
+nxfs = 1:1
 ns = Dict([nxf => 2:22 for nxf in nxfs])
-root_dir = "$(ENV["HOME"])/workdir/ITensorQTT.jl/airy_solver"
+root_root_dir = "$(ENV["HOME"])/workdir/ITensorQTT.jl/airy_solver"
+root_dir = root_root_dir
 if !isnothing(variant)
   root_dir *= "_" * variant
 end
 results_dir = joinpath(root_dir, "results")
-exact_results_dir = joinpath(root_dir, "..", "airy_solution_compression", "results")
+exact_results_dir = joinpath(root_root_dir, "..", "airy_solution_compression", "results")
 plots_dir = joinpath(root_dir, "plots")
 airy_solver_analyze(nxfs, ns; results_dir, exact_results_dir, plots_dir)
 """
@@ -631,7 +652,7 @@ function airy_solver_analyze(nxfs, ns; results_dir, exact_results_dir, plots_dir
   x = 2 .^ nxfs
   y = [last(solve_times[nxf]) for nxf in nxfs]
   n_nxfs = length(nxfs)
-  a, b = linreg(nxfs[n_nxfs÷2:end] * log10(2), log10.(y[n_nxfs÷2:end]))
+  a, b = linreg(nxfs * log10(2), log10.(y))
   yfit = (10 ^ a) * x .^ b
   plot!(plot_time, x, y;
     label="Time to solve",

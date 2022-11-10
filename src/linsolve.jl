@@ -285,8 +285,8 @@ function b_linsolve(A::MPO, b::MPS, x₀::MPS, a₀::Number=0, a₁::Number=1; r
     Dc = prod(dim.(coli))
     b = reshape(array(bT,rowi...),Dr)
     A = reshape(array(T,rowi...,coli...),Dr,Dc)
-    # x = svd(A)\b
-    x = svd(A'A)\(A'b)
+    F = svd(A)
+    x = F \ b
     xT = ITensor(x,coli...)
     return xT, nothing
   end
