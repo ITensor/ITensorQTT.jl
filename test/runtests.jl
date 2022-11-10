@@ -2,6 +2,7 @@ using ITensorQTT
 using ITensors
 using HCubature
 using Test
+using FFTW
 
 @testset "ITensorQTT.jl" begin
   @testset "MPS vcat" begin
@@ -239,5 +240,20 @@ using Test
     # Retract by two
     ψ₀′ = retract(ψ₂, (2, 2))
     @test ψ₀′ ≈ ψ₀ rtol=1e-3
+  end
+
+  @testset "QFT/DFT/FFT" begin
+    n = 5
+    s = siteinds("Qubit", n)
+    U = dft_mpo(s)
+    @test maxlinkdim(U) < 10
+    @test mpo_to_mat(U; reverse_output_sites=true) ≈ ITensorQTT.dft_matrix(n)
+    ψ = +(qtt(sin, 2π, s), qtt(sin, 4π, s), qtt(sin, 8π, s), qtt(sin, 16π, s); alg="directsum")
+    # Perform QTT-DFT
+    ψ̃ = apply(U, ψ; cutoff=1e-15)
+    f = mps_to_discrete_function(ψ)
+    f̃ = mps_to_discrete_function(reverse(ψ̃))
+    f̃_fft = fft(f) / √(2^n)
+    @test f̃_fft ≈ f̃
   end
 end
