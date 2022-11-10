@@ -20,12 +20,15 @@ include("laplacian.jl")
 include("evolve.jl")
 include("integration.jl")
 include("dmrg_target.jl")
+include("dft.jl")
 
 export function_to_mps,
   qtt_xrange,
   mps_to_discrete_function,
   mpo_to_mat,
   laplacian_mpo,
+  dft_mpo,
+  dft_circuit,
   integrate_mps,
   prolongate,
   retract,

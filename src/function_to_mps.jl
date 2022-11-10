@@ -149,9 +149,15 @@ end
 # Matrix/MPO conversion
 #
 
-function mpo_to_mat(m)
-  s = only.(siteinds(m; plev=0))
-  return reshape((Array(contract(m), reverse(s'), reverse(s))), dim(s), dim(s))
+function mpo_to_mat(m; reverse_input_sites=false, reverse_output_sites=false)
+  s_in = reverse(only.(siteinds(m; plev=0)))
+  s_out = s_in'
+
+  # Possible bit reversal
+  s_in = reverse_input_sites ? reverse(s_in) : s_in
+  s_out = reverse_output_sites ? reverse(s_out) : s_out
+
+  return reshape((Array(contract(m), s_out, s_in)), dim(s_out), dim(s_in))
 end
 
 function mat_to_mpo(m, s; kwargs...)
