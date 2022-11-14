@@ -2,9 +2,11 @@ normalized_inner(x, y) = inner(x, y) / (norm(x) * norm(y))
 
 # TODO: Move to ITensors.jl
 using ITensors: AbstractMPS
-Base.vcat(a::ITensor, ψ::AbstractMPS) = typeof(ψ)([a; ITensors.data(ψ)])
-Base.vcat(ψ::AbstractMPS, a::ITensor) = typeof(ψ)([ITensors.data(ψ); a])
 Base.vcat(ψ₁::MPST, ψ₂::MPST) where {MPST<:AbstractMPS} = MPST([ITensors.data(ψ₁); ITensors.data(ψ₂)])
+Base.vcat(a::ITensor, ψ::AbstractMPS) = [typeof(ψ)([a]); ψ]
+Base.vcat(a::Vector{ITensor}, ψ::AbstractMPS) = [typeof(ψ)(a); ψ]
+Base.vcat(ψ::AbstractMPS, a::ITensor) = [ψ; typeof(ψ)([a])]
+Base.vcat(ψ::AbstractMPS, a::Vector{ITensor}) = [ψ; typeof(ψ)(a)]
 Base.reverse(ψ::AbstractMPS) = typeof(ψ)(reverse(ITensors.data(ψ)))
 Base.pop!(ψ::AbstractMPS) = pop!(ITensors.data(ψ))
 
@@ -132,4 +134,12 @@ end
 function sqeuclidean_normalized(x::Vector, y::Vector)
   yy = dot(y, y)
   return 1.0 + (dot(x, x) / yy - 2 * real(dot(y, x)) / yy)
+end
+
+function ITensors.replaceinds(M::AbstractMPS, inds_replacement::Vector{<:Pair})
+  M = copy(M)
+  for j in 1:length(M)
+    M[j] = replaceinds(M[j], inds_replacement[j])
+  end
+  return M
 end

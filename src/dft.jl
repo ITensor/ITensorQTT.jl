@@ -40,6 +40,10 @@ function dft_mpo(s::Vector{<:Index}; alg="mpo", kwargs...)
   return dft_mpo(Algorithm(alg), s; kwargs...)
 end
 
+function idft_mpo(s::Vector{<:Index}; kwargs...)
+  return swapprime(dag(dft_mpo(s; kwargs...)), 0 => 1)
+end
+
 # https://arxiv.org/pdf/2210.08468.pdf
 # Eq. 53-54
 function phase_mpo(s::Vector{<:Index})
@@ -67,6 +71,11 @@ function hadamard_phase_mpo(s::Vector{<:Index})
   return U
 end
 
+function reverse_output_bits(M::MPO)
+  s = siteinds(M; plev=1)
+  return replaceinds(M, s .=> reverse(s))
+end
+
 function dft_mpo(::Algorithm"mpo", s::Vector{<:Index}; cutoff=1e-15)
   n = length(s)
   Us = Vector{MPO}(undef, n)
@@ -84,7 +93,7 @@ function dft_mpo(::Algorithm"mpo", s::Vector{<:Index}; cutoff=1e-15)
   for j in 2:n
     U = apply(U, Us[j]; cutoff)
   end
-  return swapprime(U, 0 => 1)
+  return reverse_output_bits(swapprime(U, 0 => 1))
 end
 
 # Discrete Fourier transform MPO from QFT circuit
@@ -95,6 +104,20 @@ function dft_mpo(::Algorithm"circuit", s::Vector{<:Index};
   move_sites_back_between_gates=true,
   move_sites_back=true,
 )
-  return apply(dft_circuit(s; inverse), MPO(s, "I"); cutoff, move_sites_back_between_gates, move_sites_back)
+  U = apply(dft_circuit(s; inverse), MPO(s, "I"); cutoff, move_sites_back_between_gates, move_sites_back)
+  return reverse_output_bits(U)
 end
 
+function apply_dft_mpo(ψ::MPS; kwargs...)
+  s = siteinds(ψ)
+  ℱ = dft_mpo(s)
+  ℱψ = reverse(apply(ℱ, ψ; kwargs...))
+  return ℱψ
+end
+
+function apply_idft_mpo(ψ::MPS; kwargs...)
+  s = siteinds(ψ)
+  ℱ⁻¹ = idft_mpo(s)
+  ℱ⁻¹ψ = apply(ℱ⁻¹, reverse(ψ); kwargs...)
+  return ℱ⁻¹ψ
+end

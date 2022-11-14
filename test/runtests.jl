@@ -245,15 +245,62 @@ using FFTW
   @testset "QFT/DFT/FFT" begin
     n = 5
     s = siteinds("Qubit", n)
-    U = dft_mpo(s)
-    @test maxlinkdim(U) < 10
-    @test mpo_to_mat(U; reverse_output_sites=true) ≈ ITensorQTT.dft_matrix(n)
+    ℱ = dft_mpo(s)
+    @test maxlinkdim(ℱ) < 10
+    @test mpo_to_mat(ℱ) ≈ ITensorQTT.dft_matrix(n)
     ψ = +(qtt(sin, 2π, s), qtt(sin, 4π, s), qtt(sin, 8π, s), qtt(sin, 16π, s); alg="directsum")
+
     # Perform QTT-DFT
-    ψ̃ = apply(U, ψ; cutoff=1e-15)
+    ℱψ = reverse(apply(ℱ, ψ; cutoff=1e-15))
     f = mps_to_discrete_function(ψ)
-    f̃ = mps_to_discrete_function(reverse(ψ̃))
-    f̃_fft = fft(f) / √(2^n)
-    @test f̃_fft ≈ f̃
+    ℱf = mps_to_discrete_function(ℱψ)
+    ℱf_fft = fft(f) / 2^(n/2)
+    @test ℱf_fft ≈ ℱf
+    @test apply_idft_mpo(ℱψ) ≈ ψ
+
+    # Perform QTT-DFT
+    ℱψ = apply_dft_mpo(ψ; cutoff=1e-15)
+    f = mps_to_discrete_function(ψ)
+    ℱf = mps_to_discrete_function(ℱψ)
+    ℱf_fft = fft(f) / 2^(n/2)
+    @test ℱf_fft ≈ ℱf
+    @test apply_idft_mpo(ℱψ) ≈ ψ
+  end
+
+  @testset "Fourier interpolation" begin
+    n = 5
+    s = siteinds("Qubit", n)
+    x₀ = 0.5
+    σ = 0.1
+    f(x) = exp(-(x - x₀)^2 / σ^2)
+    ψ = function_to_mps(f, s, 0.0, 1.0; cutoff=1e-15)
+
+    # Test DFT
+    ℱψ = apply_dft_mpo(ψ)
+    ℱ⁻¹ℱψ = apply_idft_mpo(ℱψ)
+    @test fft(mps_to_discrete_function(ψ)) / 2^(n/2) ≈ mps_to_discrete_function(ℱψ)
+    @test ℱ⁻¹ℱψ ≈ ψ
+
+    k = 2
+    ψⁿ⁺ᵏ = fourier_interpolation(ψ, k)
+    @test length(ψⁿ⁺ᵏ) == n + k
+    sⁿ⁺ᵏ = siteinds(ψⁿ⁺ᵏ)
+    ψ̃ⁿ⁺ᵏ = function_to_mps(f, sⁿ⁺ᵏ, 0.0, 1.0; cutoff=1e-15)
+    @test ψⁿ⁺ᵏ ≈ ψ̃ⁿ⁺ᵏ
+  end
+
+  @testset "Repeat function" begin
+    n = 3
+    s = siteinds("Qubit", n)
+    x₀ = 0.5
+    σ = 0.1
+    g(x) = exp(-(x - x₀)^2 / σ^2)
+    ψ = function_to_mps(g, s, 0.0, 1.0; cutoff=1e-15)
+    v = mps_to_discrete_function(ψ)
+    for k in 1:3
+      ψ_repeat = repeat_function(ψ, k)
+      v_repeat = mps_to_discrete_function(ψ_repeat)
+      @test v_repeat ≈ repeat(v, 2^k)
+    end
   end
 end
