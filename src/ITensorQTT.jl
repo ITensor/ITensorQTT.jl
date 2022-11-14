@@ -21,6 +21,7 @@ include("evolve.jl")
 include("integration.jl")
 include("dmrg_target.jl")
 include("dft.jl")
+include("fourier_interpolation.jl")
 
 export function_to_mps,
   qtt_xrange,
@@ -28,6 +29,8 @@ export function_to_mps,
   mpo_to_mat,
   laplacian_mpo,
   dft_mpo,
+  fourier_interpolation,
+  repeat_function,
   dft_circuit,
   integrate_mps,
   prolongate,
@@ -48,6 +51,8 @@ export function_to_mps,
   sqeuclidean,
   sqeuclidean_normalized,
   vec_to_mps,
-  siteinds_per_dimension
+  siteinds_per_dimension,
+  apply_dft_mpo,
+  apply_idft_mpo
 
 end
