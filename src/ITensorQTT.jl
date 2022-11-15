@@ -53,6 +53,7 @@ export function_to_mps,
   vec_to_mps,
   siteinds_per_dimension,
   apply_dft_mpo,
-  apply_idft_mpo
+  apply_idft_mpo,
+  spectral_differential
 
 end

@@ -102,3 +102,36 @@ function laplacian_mpo_approx(s, xstep=1.0; cutoff=1e-15)
   A = +(s_plus_mpo(s), s_minus_mpo(s), -2 * MPO(s, "I"); cutoff)
   return A ./ (xstep ^ (2 / L))
 end
+
+function diag_mpo(f, s, xi, xf; kwargs...)
+  s̃ = sim(s)
+  n = length(s)
+  diag_mps = function_to_mps(f, s̃, xi, xf; kwargs...)
+  return MPO([diag_mps[j] * δ(s̃[j], s[j], s[j]') for j in 1:n])
+end
+
+function spectral_differential(degree::Int, s::Vector{<:Index}; cutoff=1e-15)
+  n = length(s)
+  xi = 0.0
+  xf = 2^n
+  D = diag_mpo(k -> k^degree, s, xi, xf; alg="polynomial", degree, length=2^10, cutoff)
+  return apply(idft_mpo(s), apply(reverse(D), dft_mpo(s); cutoff); cutoff)
+end
+
+"""
+https://arxiv.org/abs/1909.06619
+https://people.maths.ox.ac.uk/trefethen/7all.pdf
+"""
+function spectral_differential(p::Polynomial, s::Vector{<:Index}; kwargs...)
+  cs = coeffs(p)
+  res = Sum{MPO}()
+  if !iszero(cs[1])
+    res += cs[1] * MPO(s, "I")
+  end
+  for d in 2:(degree(p) + 1)
+    if !iszero(cs[d])
+      res += cs[d] * spectral_differential(d, s; kwargs...)
+    end
+  end
+  return res
+end
