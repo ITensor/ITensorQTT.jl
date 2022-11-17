@@ -103,19 +103,25 @@ function laplacian_mpo_approx(s, xstep=1.0; cutoff=1e-15)
   return A ./ (xstep ^ (2 / L))
 end
 
-function diag_mpo(f, s, xi, xf; kwargs...)
+function diag_mpo(diag_mps::MPS)
+  s = siteinds(diag_mps)
   s̃ = sim(s)
-  n = length(s)
-  diag_mps = function_to_mps(f, s̃, xi, xf; kwargs...)
-  return MPO([diag_mps[j] * δ(s̃[j], s[j], s[j]') for j in 1:n])
+  diag_mps = replaceinds(diag_mps, s .=> s̃)
+  return MPO([diag_mps[j] * δ(s̃[j], s[j], s[j]') for j in 1:length(s)])
+end
+
+function diag_mpo(f, s, xi, xf; kwargs...)
+  return diag_mpo(function_to_mps(f, s, xi, xf; kwargs...))
 end
 
 function spectral_differential(degree::Int, s::Vector{<:Index}; cutoff=1e-15)
-  n = length(s)
-  xi = 0.0
-  xf = 2^n
-  D = diag_mpo(k -> k^degree, s, xi, xf; alg="polynomial", degree, length=2^10, cutoff)
-  return apply(idft_mpo(s), apply(reverse(D), dft_mpo(s); cutoff); cutoff)
+  # n = length(s)
+  # xi = 0.0
+  # xf = 2^n
+  # D = diag_mpo(k -> k^degree, s, xi, xf; alg="polynomial", degree, length=2^10, cutoff)
+  # return apply(idft_mpo(s), apply(reverse(D), dft_mpo(s); cutoff); cutoff)
+  D = 2 * (diag_mpo(-qtt(cos, π, s)) + MPO(s, "I"))
+  return reverse(apply(dft_mpo(s), apply(D, idft_mpo(s); cutoff); cutoff))
 end
 
 """
