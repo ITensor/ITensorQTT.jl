@@ -13,7 +13,7 @@ end
 
 function getindex_qtt(u, i::Int)
   n = length(u)
-  bits = reverse(digits(i - 1, base=2, pad=n))
+  bits = reverse(digits(i - 1; base=2, pad=n))
   return only(project_bits(u, bits))[]
 end
 
@@ -48,7 +48,7 @@ for xᶠ in xᶠs
     println()
 
     n = ns[j]
-    (; u, xⁱ, α, β, time)  = load_airy_results(; dirname=results_dirname, xᶠ, n)
+    (; u, xⁱ, α, β, time) = load_airy_results(; dirname=results_dirname, xᶠ, n)
     u /= norm(u)
 
     N = 2^n
@@ -124,10 +124,7 @@ xlabel = "log10(sites)"
 p = plot()
 for xᶠ in xᶠs
   plot_kwargs = (;
-    title="Norm error",
-    xlabel,
-    ylabel="log10(norm difference)",
-    label="xf = $(xᶠ)",
+    title="Norm error", xlabel, ylabel="log10(norm difference)", label="xf = $(xᶠ)"
   )
   plot!(p, nss[xᶠ] * log10(2), log10.(norm_errors[xᶠ]); plot_kwargs...)
 end

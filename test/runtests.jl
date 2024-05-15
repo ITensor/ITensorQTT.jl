@@ -8,7 +8,7 @@ using FFTW
   @testset "MPS vcat" begin
     n = 4
     s = siteinds("S=1/2", n)
-    ψ = randomMPS(s[1:end-1])
+    ψ = randomMPS(s[1:(end - 1)])
     A = randomITensor(s[end])
     @test [A; ψ] isa MPS
     @test [ψ; A] isa MPS
@@ -37,7 +37,7 @@ using FFTW
     nbits = 8
     s = siteinds("Qubit", nbits)
     xstart, xstop = 0.0, 1.0
-    x = range(; start=xstart, stop=xstop, length=(2 ^ nbits + 1))[1:end-1]
+    x = range(; start=xstart, stop=xstop, length=(2^nbits + 1))[1:(end - 1)]
 
     # Defaults to `alg="factorize"`
     ψ = function_to_mps(f, s, xstart, xstop)
@@ -62,13 +62,15 @@ using FFTW
     @test length(ψ) == nbits
     @test maxlinkdim(ψ) == 2
     f̃ = mps_to_discrete_function(ψ)
-    @test f̃ ≈ f.(x) rtol=1e-6
+    @test f̃ ≈ f.(x) rtol = 1e-6
 
-    ψ = function_to_mps(f, s, xstart, xstop; alg="polynomial", degree=8, length=50, cutoff=1e-8)
+    ψ = function_to_mps(
+      f, s, xstart, xstop; alg="polynomial", degree=8, length=50, cutoff=1e-8
+    )
     @test length(ψ) == nbits
     @test maxlinkdim(ψ) == 2
     f̃ = mps_to_discrete_function(ψ)
-    @test f̃ ≈ f.(x) rtol=1e-6
+    @test f̃ ≈ f.(x) rtol = 1e-6
 
     ψ = function_to_mps(f, s, xstart, xstop; alg="recursive", cutoff=1e-15)
     @test length(ψ) == nbits
@@ -87,8 +89,8 @@ using FFTW
     s₂ = siteinds("Qubit", nbits₂)
     x₁start, x₁stop = 0.0, 1.0
     x₂start, x₂stop = 0.0, 1.0
-    x₁ = range(; start=x₁start, stop=x₁stop, length=(2 ^ nbits₁ + 1))[1:end-1]
-    x₂ = range(; start=x₂start, stop=x₂stop, length=(2 ^ nbits₂ + 1))[1:end-1]
+    x₁ = range(; start=x₁start, stop=x₁stop, length=(2^nbits₁ + 1))[1:(end - 1)]
+    x₂ = range(; start=x₂start, stop=x₂stop, length=(2^nbits₂ + 1))[1:(end - 1)]
 
     f = (f₁, f₂)
     F(x) = prod(j -> f[j](x[j]), 1:ndims)
@@ -122,13 +124,15 @@ using FFTW
     @test length(ψ) == sum(nbits)
     @test maxlinkdim(ψ) == 4
     f̃ = mps_to_discrete_function(Val(2), ψ)
-    @test f̃ ≈ map(xᵢ -> F(xᵢ), x) rtol=1e-4
+    @test f̃ ≈ map(xᵢ -> F(xᵢ), x) rtol = 1e-4
 
-    ψ = function_to_mps(f, s, xstart, xstop; alg="polynomial", degree=8, length=50, cutoff=1e-8)
+    ψ = function_to_mps(
+      f, s, xstart, xstop; alg="polynomial", degree=8, length=50, cutoff=1e-8
+    )
     @test length(ψ) == sum(nbits)
     @test maxlinkdim(ψ) == 6
     f̃ = mps_to_discrete_function(Val(2), ψ)
-    @test f̃ ≈ map(xᵢ -> F(xᵢ), x) rtol=1e-3
+    @test f̃ ≈ map(xᵢ -> F(xᵢ), x) rtol = 1e-3
 
     ψ = function_to_mps(f, s, xstart, xstop; alg="recursive", cutoff=1e-15)
     @test length(ψ) == sum(nbits)
@@ -161,7 +165,7 @@ using FFTW
     nbits = 12
     s = siteinds("Qubit", nbits)
     int_mps = integrate_mps(function_to_mps(f, s, xstart, xstop))
-    @test int_exact ≈ int_mps rtol=1e-7
+    @test int_exact ≈ int_mps rtol = 1e-7
   end
 
   @testset "Function integration - 2-dimensional" begin
@@ -174,7 +178,7 @@ using FFTW
     nbits = 12
     s = (siteinds("Qubit", nbits), siteinds("Qubit", nbits))
     int_mps = integrate_mps(function_to_mps(f, s, xstart, xstop))
-    @test int_exact ≈ int_mps rtol=1e-3
+    @test int_exact ≈ int_mps rtol = 1e-3
   end
 
   @testset "Prolongation and retraction - 1-dimensional" begin
@@ -185,8 +189,8 @@ using FFTW
     s = siteinds("Qubit", nbits)
 
     # MPS at different scales
-    ψ₀ = function_to_mps(f, s[1:end - 2], xstart, xstop)
-    ψ₁ = function_to_mps(f, s[1:end - 1], xstart, xstop)
+    ψ₀ = function_to_mps(f, s[1:(end - 2)], xstart, xstop)
+    ψ₁ = function_to_mps(f, s[1:(end - 1)], xstart, xstop)
     ψ₂ = function_to_mps(f, s, xstart, xstop)
 
     # Prolongate by one
@@ -194,20 +198,20 @@ using FFTW
     @test ψ₂′ ≈ prolongate(ψ₁, (s[end],))
     @test ψ₂′ ≈ prolongate(ψ₁, [s[end]])
     @test ψ₂′ ≈ prolongate(ψ₁, ([s[end]],))
-    @test ψ₂′ ≈ ψ₂ rtol=1e-6
+    @test ψ₂′ ≈ ψ₂ rtol = 1e-6
 
     # Prolongate by two
     ψ₂′ = prolongate(ψ₀, [s[end - 1], s[end]])
-    @test ψ₂′ ≈ ψ₂ rtol=1e-6
+    @test ψ₂′ ≈ ψ₂ rtol = 1e-6
 
     # Retract by one
     ψ₁′ = retract(ψ₂)
     @test ψ₁′ ≈ retract(ψ₂, 1)
-    @test ψ₁′ ≈ ψ₁ rtol=1e-5
+    @test ψ₁′ ≈ ψ₁ rtol = 1e-5
 
     # Retract by two
     ψ₀′ = retract(ψ₂, 2)
-    @test ψ₀′ ≈ ψ₀ rtol=1e-5
+    @test ψ₀′ ≈ ψ₀ rtol = 1e-5
   end
 
   @testset "Prolongation and retraction - 2-dimensional" begin
@@ -227,19 +231,19 @@ using FFTW
     # Prolongate by one
     ψ₂′ = prolongate(ψ₁, map(sⱼ -> sⱼ[end], s))
     @test ψ₂′ ≈ prolongate(ψ₁, map(sⱼ -> [sⱼ[end]], s))
-    @test ψ₂′ ≈ ψ₂ rtol=1e-4
+    @test ψ₂′ ≈ ψ₂ rtol = 1e-4
 
     # Prolongate by two
     ψ₂′ = prolongate(ψ₀, map(sⱼ -> [sⱼ[end - 1], sⱼ[end]], s))
-    @test ψ₂′ ≈ ψ₂ rtol=1e-3
+    @test ψ₂′ ≈ ψ₂ rtol = 1e-3
 
     # Retract by one
     ψ₁′ = retract(ψ₂, (1, 1))
-    @test ψ₁′ ≈ ψ₁ rtol=1e-4
+    @test ψ₁′ ≈ ψ₁ rtol = 1e-4
 
     # Retract by two
     ψ₀′ = retract(ψ₂, (2, 2))
-    @test ψ₀′ ≈ ψ₀ rtol=1e-3
+    @test ψ₀′ ≈ ψ₀ rtol = 1e-3
   end
 
   @testset "QFT/DFT/FFT" begin
@@ -248,13 +252,15 @@ using FFTW
     ℱ = dft_mpo(s)
     @test maxlinkdim(ℱ) < 10
     @test mpo_to_mat(ℱ) ≈ ITensorQTT.dft_matrix(n)
-    ψ = +(qtt(sin, 2π, s), qtt(sin, 4π, s), qtt(sin, 8π, s), qtt(sin, 16π, s); alg="directsum")
+    ψ = +(
+      qtt(sin, 2π, s), qtt(sin, 4π, s), qtt(sin, 8π, s), qtt(sin, 16π, s); alg="directsum"
+    )
 
     # Perform QTT-DFT
     ℱψ = reverse(apply(ℱ, ψ; cutoff=1e-15))
     f = mps_to_discrete_function(ψ)
     ℱf = mps_to_discrete_function(ℱψ)
-    ℱf_fft = fft(f) / 2^(n/2)
+    ℱf_fft = fft(f) / 2^(n / 2)
     @test ℱf_fft ≈ ℱf
     @test apply_idft_mpo(ℱψ) ≈ ψ
 
@@ -262,7 +268,7 @@ using FFTW
     ℱψ = apply_dft_mpo(ψ; cutoff=1e-15)
     f = mps_to_discrete_function(ψ)
     ℱf = mps_to_discrete_function(ℱψ)
-    ℱf_fft = fft(f) / 2^(n/2)
+    ℱf_fft = fft(f) / 2^(n / 2)
     @test ℱf_fft ≈ ℱf
     @test apply_idft_mpo(ℱψ) ≈ ψ
   end
@@ -278,7 +284,7 @@ using FFTW
     # Test DFT
     ℱψ = apply_dft_mpo(ψ)
     ℱ⁻¹ℱψ = apply_idft_mpo(ℱψ)
-    @test fft(mps_to_discrete_function(ψ)) / 2^(n/2) ≈ mps_to_discrete_function(ℱψ)
+    @test fft(mps_to_discrete_function(ψ)) / 2^(n / 2) ≈ mps_to_discrete_function(ℱψ)
     @test ℱ⁻¹ℱψ ≈ ψ
 
     k = 2

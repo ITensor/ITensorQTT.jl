@@ -21,7 +21,7 @@ function airy_chebyshev_expansion(xf, N, order; α=1.0, β=1.0, xi=1.0)
   println("Compute discrete Airy function")
   # u_exact = @time airy_solution.(xs, α, β)
 
-  f(x) = 1/√2 * airyai(-x) + 1/√2 * airybi(-x)
+  f(x) = 1 / √2 * airyai(-x) + 1 / √2 * airybi(-x)
   x = chebpoints(order, xi, xf)
   c = chebinterp(f.(x), xi, xf)
 

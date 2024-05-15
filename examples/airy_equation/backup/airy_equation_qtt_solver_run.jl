@@ -22,7 +22,7 @@ function run_airy(;
     krylovdim=30,
     maxiter=30,
     ishermitian=true,
-    linsolve_kwargs...
+    linsolve_kwargs...,
   )
   @show linsolve_kwargs
 

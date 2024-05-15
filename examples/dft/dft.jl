@@ -9,7 +9,7 @@ ITensors.disable_warn_order()
 function dft_matrix(n::Int)
   N = 2^n
   ω = exp(-2π * im / N)
-  return [ω^(j * k) / √N for j in 0:(N-1), k in 0:(N-1)]
+  return [ω^(j * k) / √N for j in 0:(N - 1), k in 0:(N - 1)]
 end
 
 n = 20
@@ -34,7 +34,7 @@ end
 
 ψ = +(qtt(sin, 2π, s), qtt(sin, 4π, s), qtt(sin, 8π, s), qtt(sin, 16π, s); alg="directsum")
 @show maxlinkdim(ψ)
-  
+
 println("\nApply DFT MPO")
 ψ̃ = @time reverse(apply(U, ψ; cutoff=1e-15))
 @show maxlinkdim(ψ̃)

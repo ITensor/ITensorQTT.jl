@@ -19,7 +19,9 @@ function airy_mpo(s, xi, xf)
   h = (xf - xi) / 2^n
   f(x) = -((xf - xi) * x + xi)
 
-  q_mps = function_to_mps(f, s̃, xi, xf; cutoff=1e-8, alg="polynomial", degree=1, length=1000)
+  q_mps = function_to_mps(
+    f, s̃, xi, xf; cutoff=1e-8, alg="polynomial", degree=1, length=1000
+  )
   A₂ = h^2 * MPO([q_mps[j] * δ(s̃[j], s[j], s[j]') for j in 1:n])
   return convert(MPO, +(A₁, A₂; alg="directsum"))
 end

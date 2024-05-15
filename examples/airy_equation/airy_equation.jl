@@ -130,7 +130,12 @@ function airy_compare_to_matrix(n; α, β, xi, xf, fft_cutoff=1.0)
   if n < 15
     @show norm(A_mpo - A_mat)
   end
-  return (; nnz_fft, N, linsolve_error=sum(abs, A_mat * u_exact - b_mat) / N, diff=sum(abs2, u_mat - u_exact) / N)
+  return (;
+    nnz_fft,
+    N,
+    linsolve_error=sum(abs, A_mat * u_exact - b_mat) / N,
+    diff=sum(abs2, u_mat - u_exact) / N,
+  )
 end
 
 """
@@ -151,7 +156,10 @@ function airy_qtt_compression_get_results(nxfs, ns; results_dir, α, β, cutoff=
     @time for n in ns
       @show n
       results = @time airy_qtt_compression(n, 1.0, 2^nxf; α, β, cutoff)
-      jldsave(joinpath(results_dir, "airy_qtt_compression_xi_1.0_xf_2^$(nxf)_n_$(n).jld2"); results)
+      jldsave(
+        joinpath(results_dir, "airy_qtt_compression_xi_1.0_xf_2^$(nxf)_n_$(n).jld2");
+        results,
+      )
     end
   end
 end
@@ -165,7 +173,9 @@ results_dir = joinpath(root_dir, "results")
 plots_dir = joinpath(root_dir, "plots")
 airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, best_fit_points)
 """
-function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, best_fit_points=nothing)
+function airy_qtt_compression_plot_results(
+  nxfs, ns; results_dir, plots_dir, best_fit_points=nothing
+)
   labelfontsize = 12
   tickfontsize = 10
   legendfontsize = 10
@@ -253,7 +263,10 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
     airy_errors = Float64[]
     airy_exact_errors = Float64[]
     for n in ns[nxf]
-      results = load(joinpath(results_dir, "airy_qtt_compression_xi_1.0_xf_2^$(nxf)_n_$(n).jld2"), "results")
+      results = load(
+        joinpath(results_dir, "airy_qtt_compression_xi_1.0_xf_2^$(nxf)_n_$(n).jld2"),
+        "results",
+      )
       xi = results.xi
       xf = results.xf
       u = results.u
@@ -289,10 +302,7 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
     push!(maxveclengths, 2^(n_constant_error))
     push!(maxlinkdims, maxlinkdims_nxf[j_constant_error])
 
-    plot!(plot_norm_error, 2 .^ ns[nxf], norm_errors;
-          label="xf=$(2^nxf)",
-          linewidth=3,
-         )
+    plot!(plot_norm_error, 2 .^ ns[nxf], norm_errors; label="xf=$(2^nxf)", linewidth=3)
 
     # Best fit line
     if !isnothing(best_fit_points)
@@ -302,62 +312,68 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir, bes
       @show nxf, a, b
     end
 
-    plot!(plot_airy_error, 2 .^ ns[nxf], airy_errors;
-          label="xf=$(2^nxf)",
-          linewidth=3,
-         )
+    plot!(plot_airy_error, 2 .^ ns[nxf], airy_errors; label="xf=$(2^nxf)", linewidth=3)
 
-    plot!(plot_airy_exact_error, 2 .^ ns[nxf], airy_exact_errors;
-          label="xf=$(2^nxf), exact",
-          linewidth=3,
-         )
+    plot!(
+      plot_airy_exact_error,
+      2 .^ ns[nxf],
+      airy_exact_errors;
+      label="xf=$(2^nxf), exact",
+      linewidth=3,
+    )
   end
   x = 2 .^ nxfs
 
   # Plot QTT rank
-  plot!(plot_qtt_rank, x, maxlinkdims;
-        label="QTT",
-        linewidth=3,
-       )
+  plot!(plot_qtt_rank, x, maxlinkdims; label="QTT", linewidth=3)
 
   a_qtt_rank, b_qtt_rank = linreg(nxfs * log10(2), log10.(maxlinkdims))
-  plot!(plot_qtt_rank, x, 10 ^ a_qtt_rank * x .^ b_qtt_rank;
-        label="Best fit: $(round(10^a_qtt_rank; digits=2)) xf ^ $(round(b_qtt_rank; digits=2))",
-        linewidth=3,
-        linestyle=:dash,
-       )
+  plot!(
+    plot_qtt_rank,
+    x,
+    10^a_qtt_rank * x .^ b_qtt_rank;
+    label="Best fit: $(round(10^a_qtt_rank; digits=2)) xf ^ $(round(b_qtt_rank; digits=2))",
+    linewidth=3,
+    linestyle=:dash,
+  )
 
   # Plot memory usage
-  plot!(plot_memory, x, 2 .* log2.(maxveclengths) .* maxlinkdims .^ 2;
-        label="QTT",
-        linewidth=3,
-       )
+  plot!(
+    plot_memory, x, 2 .* log2.(maxveclengths) .* maxlinkdims .^ 2; label="QTT", linewidth=3
+  )
 
-  a_qtt, b_qtt = linreg(nxfs * log10(2), log10.(2 .* log2.(maxveclengths) .* maxlinkdims .^ 2))
-  plot!(plot_memory, x, 10 ^ a_qtt * x .^ b_qtt;
-        label="Best fit: $(round(10^a_qtt; digits=2)) xf ^ $(round(b_qtt; digits=2))",
-        linewidth=3,
-        linestyle=:dash,
-       )
+  a_qtt, b_qtt = linreg(
+    nxfs * log10(2), log10.(2 .* log2.(maxveclengths) .* maxlinkdims .^ 2)
+  )
+  plot!(
+    plot_memory,
+    x,
+    10^a_qtt * x .^ b_qtt;
+    label="Best fit: $(round(10^a_qtt; digits=2)) xf ^ $(round(b_qtt; digits=2))",
+    linewidth=3,
+    linestyle=:dash,
+  )
 
-  plot!(plot_memory, x, maxveclengths;
-        label="Number of gridpoints",
-        linewidth=3,
-       )
+  plot!(plot_memory, x, maxveclengths; label="Number of gridpoints", linewidth=3)
 
   a_fd, b_fd = linreg(nxfs * log10(2), log10.(maxveclengths))
-  plot!(plot_memory, x, 10 ^ a_fd * x .^ b_fd;
-        label="Best fit: $(round(10^a_fd; digits=2)) xf ^ $(round(b_fd; digits=2))",
-        linewidth=3,
-        linestyle=:dash,
-       )
+  plot!(
+    plot_memory,
+    x,
+    10^a_fd * x .^ b_fd;
+    label="Best fit: $(round(10^a_fd; digits=2)) xf ^ $(round(b_fd; digits=2))",
+    linewidth=3,
+    linestyle=:dash,
+  )
 
   println("Saving plots to $(plots_dir)")
   Plots.savefig(plot_qtt_rank, joinpath(plots_dir, "airy_qtt_rank.pdf"))
   Plots.savefig(plot_memory, joinpath(plots_dir, "airy_memory.pdf"))
   Plots.savefig(plot_norm_error, joinpath(plots_dir, "airy_error_diffs.pdf"))
   Plots.savefig(plot_airy_error, joinpath(plots_dir, "airy_error_diffeq.pdf"))
-  Plots.savefig(plot_airy_exact_error, joinpath(plots_dir, "airy_exact_error_diffeq.pdf"))
+  return Plots.savefig(
+    plot_airy_exact_error, joinpath(plots_dir, "airy_exact_error_diffeq.pdf")
+  )
 end
 
 # Solve the Airy equation:
@@ -369,15 +385,7 @@ end
 # u(xi) = ui
 # u(xf) = uf
 function airy_solver(;
-  xi=1.0,
-  xf,
-  n,
-  α,
-  β,
-  seed=1234,
-  init=nothing,
-  variant="pseudoinverse",
-  linsolve_kwargs=(;),
+  xi=1.0, xf, n, α, β, seed=1234, init=nothing, variant="pseudoinverse", linsolve_kwargs=(;)
 )
   linsolve_kwargs = (;
     nsweeps=10,
@@ -442,7 +450,9 @@ end
 results_dir = joinpath(root_dir, "results")
 airy_solver_run(nxfs, ns; results_dir, save_results=true, variant)
 """
-function airy_solver_run(nxfs, ns;
+function airy_solver_run(
+  nxfs,
+  ns;
   results_dir,
   save_results,
   multigrid=true, # Use results from shorter system as starting state
@@ -461,7 +471,7 @@ function airy_solver_run(nxfs, ns;
     krylovdim=30,
     maxiter=30,
     ishermitian=true,
-    linsolve_kwargs...
+    linsolve_kwargs...,
   )
   @show linsolve_kwargs
 
@@ -567,7 +577,10 @@ function airy_solver_analyze(nxfs, ns; results_dir, exact_results_dir, plots_dir
       end
 
       # TODO: Implement airy_compression_filename(nxf, n)
-      exact_results = load(joinpath(exact_results_dir, "airy_qtt_compression_xi_1.0_xf_2^$(nxf)_n_$(n).jld2"), "results")
+      exact_results = load(
+        joinpath(exact_results_dir, "airy_qtt_compression_xi_1.0_xf_2^$(nxf)_n_$(n).jld2"),
+        "results",
+      )
       u_exact = exact_results.u
       u_exact = replace_siteinds(u_exact, s)
 
@@ -624,11 +637,17 @@ function airy_solver_analyze(nxfs, ns; results_dir, exact_results_dir, plots_dir
     ylabel="Time to solve (seconds)",
   )
   for nxf in nxfs
-    plot!(plot_error_linsolves, 2 .^ ns[nxf], abs.(error_linsolves[nxf]);
+    plot!(
+      plot_error_linsolves,
+      2 .^ ns[nxf],
+      abs.(error_linsolves[nxf]);
       label="xf = $(2^nxf)",
       linewidth=3,
     )
-    plot!(plot_error_diffs, 2 .^ ns[nxf], abs.(error_diffs[nxf]);
+    plot!(
+      plot_error_diffs,
+      2 .^ ns[nxf],
+      abs.(error_diffs[nxf]);
       label="xf = $(2^nxf)",
       linewidth=3,
     )
@@ -638,35 +657,37 @@ function airy_solver_analyze(nxfs, ns; results_dir, exact_results_dir, plots_dir
   x = 2 .^ nxfs
   y = [last(maxlinkdims[nxf]) for nxf in nxfs]
   a, b = linreg(nxfs * log10(2), log10.(y))
-  yfit = (10 ^ a) * x .^ b
-  plot!(plot_maxlinkdims, x, y;
-    label="QTT rank",
+  yfit = (10^a) * x .^ b
+  plot!(plot_maxlinkdims, x, y; label="QTT rank", linewidth=3)
+  plot!(
+    plot_maxlinkdims,
+    x,
+    yfit;
+    label="Best fit: $(round(10^a; digits=2)) xf ^ $(round(b; digits=2))",
     linewidth=3,
+    linestyle=:dash,
   )
-  plot!(plot_maxlinkdims, x, yfit;
-        label="Best fit: $(round(10^a; digits=2)) xf ^ $(round(b; digits=2))",
-        linewidth=3,
-        linestyle=:dash,
-       )
 
   # Plot final times
   x = 2 .^ nxfs
   y = [last(solve_times[nxf]) for nxf in nxfs]
   n_nxfs = length(nxfs)
   a, b = linreg(nxfs * log10(2), log10.(y))
-  yfit = (10 ^ a) * x .^ b
-  plot!(plot_time, x, y;
-    label="Time to solve",
+  yfit = (10^a) * x .^ b
+  plot!(plot_time, x, y; label="Time to solve", linewidth=3)
+  plot!(
+    plot_time,
+    x,
+    yfit;
+    label="Best fit: $(round(10^a; digits=2)) xf ^ $(round(b; digits=2))",
     linewidth=3,
+    linestyle=:dash,
   )
-  plot!(plot_time, x, yfit;
-        label="Best fit: $(round(10^a; digits=2)) xf ^ $(round(b; digits=2))",
-        linewidth=3,
-        linestyle=:dash,
-       )
 
   println("Saving plots to $(plots_dir)")
-  Plots.savefig(plot_error_linsolves, joinpath(plots_dir, "airy_solver_error_linsolves.pdf"))
+  Plots.savefig(
+    plot_error_linsolves, joinpath(plots_dir, "airy_solver_error_linsolves.pdf")
+  )
   Plots.savefig(plot_error_diffs, joinpath(plots_dir, "airy_solver_error_diffs.pdf"))
   Plots.savefig(plot_maxlinkdims, joinpath(plots_dir, "airy_solver_qtt_rank.pdf"))
   Plots.savefig(plot_time, joinpath(plots_dir, "airy_solver_solve_time.pdf"))
@@ -685,7 +706,9 @@ results_dir = joinpath(root_dir, "results")
 exact_results_dir = joinpath(root_dir, "..", "airy_solution_compression", "results")
 airy_solver_visualize_solution(nk, n, 0.75, -1; results_dir, exact_results_dir, plots_dir)
 """
-function airy_solver_visualize_solution(; xf::Int, n::Int, xstart::Float64, zoom::Int=0, kwargs...)
+function airy_solver_visualize_solution(;
+  xf::Int, n::Int, xstart::Float64, zoom::Int=0, kwargs...
+)
   # nzoom is the zoom level relative to the length scale `xf`
   nproj = Int(log2(xf)) + zoom
 
@@ -710,7 +733,9 @@ function airy_solver_visualize_solution(; xf::Int, n::Int, xstart::Float64, zoom
   return airy_solver_visualize_solution(xf, n, proj; kwargs...)
 end
 
-function airy_solver_visualize_solution(xf::Int, n::Int, proj::Vector{Int}; results_dir, exact_results_dir, nplot=min(10, n))
+function airy_solver_visualize_solution(
+  xf::Int, n::Int, proj::Vector{Int}; results_dir, exact_results_dir, nplot=min(10, n)
+)
   nxf = Int(log2(xf))
 
   nplot = min(n, nplot)
@@ -740,7 +765,10 @@ function airy_solver_visualize_solution(xf::Int, n::Int, proj::Vector{Int}; resu
   u = results.u
   s = siteinds(u)
 
-  exact_results = load(joinpath(exact_results_dir, "airy_qtt_compression_xi_1.0_xf_2^$(nxf)_n_$(n).jld2"), "results")
+  exact_results = load(
+    joinpath(exact_results_dir, "airy_qtt_compression_xi_1.0_xf_2^$(nxf)_n_$(n).jld2"),
+    "results",
+  )
   u_exact = exact_results.u
 
   @show length(u)
@@ -791,7 +819,9 @@ exact_results_dir = joinpath(root_dir, "..", "airy_solution_compression", "resul
 plots_dir = joinpath(root_dir, "plots")
 airy_solver_plot_solutions(2 .^ nxfs, ns, xstarts, zoom; results_dir, exact_results_dir, plots_dir)
 """
-function airy_solver_plot_solutions(xfs, ns, xstarts, zoom; results_dir, exact_results_dir, plots_dir)
+function airy_solver_plot_solutions(
+  xfs, ns, xstarts, zoom; results_dir, exact_results_dir, plots_dir
+)
   for xf in xfs
     for xstart in xstarts
       plot_u_diff = plot(;
@@ -805,7 +835,9 @@ function airy_solver_plot_solutions(xfs, ns, xstarts, zoom; results_dir, exact_r
         yrange=[1e-8, 1e-1],
       )
       for n in ns
-        (; xrange, u_vec, u_exact_vec) = airy_solver_visualize_solution(; xf, n, xstart, zoom, results_dir, exact_results_dir)
+        (; xrange, u_vec, u_exact_vec) = airy_solver_visualize_solution(;
+          xf, n, xstart, zoom, results_dir, exact_results_dir
+        )
 
         # Plot the original functions
         plot_u = plot(;
@@ -816,23 +848,32 @@ function airy_solver_plot_solutions(xfs, ns, xstarts, zoom; results_dir, exact_r
           ylabel="u(x)",
           xformatter=:plain, # disable scientific notation
         )
-        plot!(plot_u, xrange, u_vec;
-          label="QTT solution",
-          linewidth=3,
+        plot!(plot_u, xrange, u_vec; label="QTT solution", linewidth=3)
+        plot!(plot_u, xrange, u_exact_vec; label="Airy function", linewidth=3)
+        Plots.savefig(
+          plot_u,
+          joinpath(
+            plots_dir,
+            "airy_visualize_xf_$(xf)_n_$(n)_xstart_$(xstart)_zoom_$(zoom)_qtt.pdf",
+          ),
         )
-        plot!(plot_u, xrange, u_exact_vec;
-          label="Airy function",
-          linewidth=3,
-        )
-        Plots.savefig(plot_u, joinpath(plots_dir, "airy_visualize_xf_$(xf)_n_$(n)_xstart_$(xstart)_zoom_$(zoom)_qtt.pdf"))
 
         # Plot the error
-        plot!(plot_u_diff, xrange, abs.(u_vec - u_exact_vec);
+        plot!(
+          plot_u_diff,
+          xrange,
+          abs.(u_vec - u_exact_vec);
           label="2^$n gridpoints",
           linewidth=3,
         )
       end
-      Plots.savefig(plot_u_diff, joinpath(plots_dir, "airy_visualize_xf_$(xf)_ns_$(ns)_xstart_$(xstart)_zoom_$(zoom)_diff.pdf"))
+      Plots.savefig(
+        plot_u_diff,
+        joinpath(
+          plots_dir,
+          "airy_visualize_xf_$(xf)_ns_$(ns)_xstart_$(xstart)_zoom_$(zoom)_diff.pdf",
+        ),
+      )
     end
   end
 end
