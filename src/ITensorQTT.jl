@@ -2,7 +2,6 @@ module ITensorQTT
 
 using LinearAlgebra # SymTridiagonal
 using ITensors
-using ITensorTDVP
 using Polynomials
 using KrylovKit
 
