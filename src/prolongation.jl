@@ -86,7 +86,7 @@ function retract_one_site(::Val{ndims}, ψ::MPS; cutoff=1e-8, kwargs...) where {
   for j in 1:ndims
     pop!(Rψ)
   end
-  return Rψ / (2 ^ ndims)
+  return Rψ / (2^ndims)
 end
 
 function retract(ψ::MPS, nretract::Tuple{Vararg{Integer}}; cutoff=1e-8, kwargs...)

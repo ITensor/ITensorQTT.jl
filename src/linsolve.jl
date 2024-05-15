@@ -1,4 +1,5 @@
-using ITensors: ProjMPS
+import Base: copy
+using ITensorMPS: ITensorMPS
 
 function LinearAlgebra.pinv(T::ITensor, left_inds...; kwargs...)
   U, S, V = svd(T, left_inds...; kwargs...)
@@ -9,7 +10,7 @@ function LinearAlgebra.pinv(T::ITensor, left_inds...; kwargs...)
   return dag(U) * dag(S⁻¹) * dag(V)
 end
 
-function proj(P::ProjMPS)
+function proj(P::ITensorMPS.ProjMPS)
   ϕ = prime(linkinds, P.M)
   p = ITensor(1.0)
   !isnothing(lproj(P)) && (p *= lproj(P))
@@ -20,25 +21,8 @@ function proj(P::ProjMPS)
   return dag(p)
 end
 
-# Compute a solution x to the linear system:
-#
-# (a₀ + a₁ * A)*x = b
-#
-# using starting guess x₀.
-function KrylovKit.linsolve(A::MPO, b::MPS, x₀::MPS, a₀::Number=0, a₁::Number=1; reverse_step=false, tol=1e-5, krylovdim=20, maxiter=10, ishermitian=false, kwargs...)
-  function linsolve_solver(PH, t, x₀; kwargs...)
-    A = PH.PH
-    b = proj(only(PH.pm))
-    x, info = linsolve(A, b, x₀, a₀, a₁; ishermitian, tol, krylovdim, maxiter)
-    return x, nothing
-  end
-  t = Inf
-  PH = ProjMPO_MPS(A, [b])
-  return tdvp(linsolve_solver, PH, t, x₀; reverse_step, kwargs...)
-end
-
 # Get `l * b * r`
-function get_b(P::ProjMPS)
+function get_b(P::ITensorMPS.ProjMPS)
   # ϕ = prime(linkinds, P.M)
   ϕ = P.M
 
@@ -67,7 +51,19 @@ end
 # WARNING: currently scales as `chi^4` since it builds the full
 # matrix for the projected MPO A. Need to investigate Krylov-based
 # methods.
-function linsolve_pseudoinverse(A::MPO, b::MPS, x₀::MPS, a₀::Number=0, a₁::Number=1; reverse_step=false, tol=1e-5, krylovdim=20, maxiter=10, ishermitian=false, kwargs...)
+function linsolve_pseudoinverse(
+  A::MPO,
+  b::MPS,
+  x₀::MPS,
+  a₀::Number=0,
+  a₁::Number=1;
+  reverse_step=false,
+  tol=1e-5,
+  krylovdim=20,
+  maxiter=10,
+  ishermitian=false,
+  kwargs...,
+)
   function linsolve_solver(PH, t, x₀; kwargs...)
     A = PH.PH
     (; b, l, r) = get_b(only(PH.pm))
@@ -101,7 +97,19 @@ function linsolve_pseudoinverse(A::MPO, b::MPS, x₀::MPS, a₀::Number=0, a₁:
 end
 
 # Try some preconditioning, not working right now.
-function linsolve_precondition(A::MPO, b::MPS, x₀::MPS, a₀::Number=0, a₁::Number=1; reverse_step=false, tol=1e-5, krylovdim=20, maxiter=10, ishermitian=false, kwargs...)
+function linsolve_precondition(
+  A::MPO,
+  b::MPS,
+  x₀::MPS,
+  a₀::Number=0,
+  a₁::Number=1;
+  reverse_step=false,
+  tol=1e-5,
+  krylovdim=20,
+  maxiter=10,
+  ishermitian=false,
+  kwargs...,
+)
   function linsolve_solver(PH, t, x₀; kwargs...)
     A = PH.PH
     (; b, l, r) = get_b(only(PH.pm))
@@ -164,10 +172,7 @@ function linsolve_precondition(A::MPO, b::MPS, x₀::MPS, a₀::Number=0, a₁::
   return tdvp(linsolve_solver, PH, t, x₀; reverse_step, kwargs...)
 end
 
-import ITensors: AbstractProjMPO, makeL!, makeR!, position!, set_nsite!, nsite
-import Base: copy
-
-mutable struct ProjMPOLinsolve <: AbstractProjMPO
+mutable struct ProjMPOLinsolve <: ITensorMPS.AbstractProjMPO
   lpos::Int
   rpos::Int
   nsite::Int
@@ -182,7 +187,9 @@ function ProjMPOLinsolve(x0::MPS, b::MPS, A::MPO)
 end
 
 function copy(P::ProjMPOLinsolve)
-  return ProjMPOLinsolve(P.lpos, P.rpos, P.nsite, copy(P.x), copy(P.b), copy(P.H), copy(P.LR))
+  return ProjMPOLinsolve(
+    P.lpos, P.rpos, P.nsite, copy(P.x), copy(P.b), copy(P.H), copy(P.LR)
+  )
 end
 
 function set_nsite!(P::ProjMPOLinsolve, nsite)
@@ -239,22 +246,23 @@ function makeR!(P::ProjMPOLinsolve, x::MPS, k::Int)
 end
 
 function position!(P::ProjMPOLinsolve, x::MPS, pos::Int)
-  ITensors.orthogonalize!(P.b,pos)
-  makeL!(P, x, pos - 1)
-  makeR!(P, x, pos + nsite(P))
+  ITensors.orthogonalize!(P.b, pos)
+  ITensorMPS.makeL!(P, x, pos - 1)
+  ITensorMPS.makeR!(P, x, pos + nsite(P))
   return P
 end
 
 function bvec(P::ProjMPOLinsolve)
-  bv = ITensor(1.)
-  for j=P.lpos+1:P.rpos-1
+  bv = ITensor(1.0)
+  for j in (P.lpos + 1):(P.rpos - 1)
     bv *= P.b[j]
   end
   return bv
 end
 
-function b_linsolve(A::MPO, b::MPS, x₀::MPS, a₀::Number=0, a₁::Number=1; reverse_step=false, kwargs...)
-
+function b_linsolve(
+  A::MPO, b::MPS, x₀::MPS, a₀::Number=0, a₁::Number=1; reverse_step=false, kwargs...
+)
   function b_linsolve_solver(P::ProjMPOLinsolve, t, x₀; kws...)
     solver_kwargs = (;
       ishermitian=get(kws, :ishermitian, false),
@@ -270,7 +278,7 @@ function b_linsolve(A::MPO, b::MPS, x₀::MPS, a₀::Number=0, a₁::Number=1; r
 
   function b_linsolve_exact_solver(P::ProjMPOLinsolve, t, x₀; kws...)
     bT = bvec(P)
-    T = ITensor(1.)
+    T = ITensor(1.0)
     let
       itensor_map = Union{ITensor,ITensors.OneITensor}[lproj(P)]
       append!(itensor_map, P.H[ITensors.site_range(P)])
@@ -279,21 +287,21 @@ function b_linsolve(A::MPO, b::MPS, x₀::MPS, a₀::Number=0, a₁::Number=1; r
         T *= it
       end
     end
-    rowi = commoninds(T,bT)
-    coli = uniqueinds(T,bT)
+    rowi = commoninds(T, bT)
+    coli = uniqueinds(T, bT)
     Dr = prod(dim.(rowi))
     Dc = prod(dim.(coli))
-    b = reshape(array(bT,rowi...),Dr)
-    A = reshape(array(T,rowi...,coli...),Dr,Dc)
+    b = reshape(array(bT, rowi...), Dr)
+    A = reshape(array(T, rowi..., coli...), Dr, Dc)
     F = svd(A)
     x = F \ b
-    xT = ITensor(x,coli...)
+    xT = ITensor(x, coli...)
     return xT, nothing
   end
 
   t = Inf
-  b = prime(b,"Site") # TODO: generalize
-  P = ProjMPOLinsolve(x₀,b,A)
+  b = prime(b, "Site") # TODO: generalize
+  P = ProjMPOLinsolve(x₀, b, A)
   return tdvp(b_linsolve_exact_solver, P, t, x₀; reverse_step, kwargs...)
   #return tdvp(b_linsolve_solver, P, t, x₀; reverse_step, kwargs...)
 end

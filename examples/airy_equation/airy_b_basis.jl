@@ -1,4 +1,5 @@
 using ITensors
+using ITensorMPS
 using ITensorQTT
 using JLD2
 using Plots
@@ -75,7 +76,7 @@ n = 10
 xi = 1.0
 xf = 2^nxf
 
-α, β = 1/√2, 1/√2
+α, β = 1 / √2, 1 / √2
 
 filename = "$(ENV["HOME"])/workdir/ITensorQTT.jl/airy_solver_pseudoinverse/results/airy_xf_$(xf)_n_$(n).jld2"
 u_init = load(filename, "u")
@@ -137,7 +138,7 @@ up_vec = svd(Ap_mat) \ bp_vec
 
 println("\nXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
 println("Project onto x_trunc")
-p = truncate(u_init'; maxdim=(maxlinkdim(u_init)-3))
+p = truncate(u_init'; maxdim=(maxlinkdim(u_init) - 3))
 p = +(p, b; cutoff=1e-15)
 p = +(p, r; cutoff=1e-15)
 @show maxlinkdim(p)

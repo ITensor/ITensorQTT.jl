@@ -1,4 +1,5 @@
 using ITensors
+using ITensorMPS
 using ITensorQTT
 using JLD2
 using Plots
@@ -25,13 +26,7 @@ helmholtz_solver_filename(nk, n) = "helmholtz_solver_nk_$(nk)_n_$(n).jld2"
 helmholtz_solver(0, 10) # Solve a single sin wave with 2^10 gridpoints
 """
 function helmholtz_solver(nk::Int, n::Int; init=nothing, solver_kwargs=(;))
-  solver_kwargs = (;
-    nsweeps=40,
-    cutoff=1e-15,
-    outputlevel=0,
-    nsite=2,
-    solver_kwargs...
-  )
+  solver_kwargs = (; nsweeps=40, cutoff=1e-15, outputlevel=0, nsite=2, solver_kwargs...)
   xi = 0.0
   xf = 1.0
 
@@ -85,14 +80,10 @@ end
 # u(x₁,x₂) = sin(k₁x₁) sin(k₂x₂)
 #          = sin(2π * 2^nₖ₁ * x₁) sin(2π * 2^nₖ₂ * x₂)
 # λ = -k² = -k⃗⋅k⃗ = -(k₁² + k₂²) = -4π² * (2^2nₖ₁ + 2^2nₖ₂)
-function helmholtz_solver(n⃗ₖ::NTuple{D,Int}, n⃗::NTuple{D,Int}; init=nothing, linsolve, solver_kwargs=(;)) where {D}
-  solver_kwargs = (;
-    nsweeps=40,
-    cutoff=1e-15,
-    outputlevel=1,
-    nsite=2,
-    solver_kwargs...
-  )
+function helmholtz_solver(
+  n⃗ₖ::NTuple{D,Int}, n⃗::NTuple{D,Int}; init=nothing, linsolve, solver_kwargs=(;)
+) where {D}
+  solver_kwargs = (; nsweeps=40, cutoff=1e-15, outputlevel=1, nsite=2, solver_kwargs...)
   @assert allequal(n⃗)
   @show n⃗ₖ, 2 .^ n⃗ₖ
   @show n⃗, 2 .^ n⃗
@@ -129,7 +120,7 @@ function helmholtz_solver(n⃗ₖ::NTuple{D,Int}, n⃗::NTuple{D,Int}; init=noth
   if linsolve
     λ̃ = -sum(k⃗ .^ 2) * xstep^2
     Ã = convert(MPO, -(A, λ * interleave.(MPO.("I", s⃗)); alg="directsum"))
-    b = boundary_value_mps(1/√2, 1/√2, only(s⃗))
+    b = boundary_value_mps(1 / √2, 1 / √2, only(s⃗))
     u = linsolve(Ã, b, init; solver_kwargs...)
   else
     u = dmrg_target(A, init; target_eigenvalue=-sum(k⃗ .^ 2) * xstep^2, solver_kwargs...)
@@ -137,7 +128,11 @@ function helmholtz_solver(n⃗ₖ::NTuple{D,Int}, n⃗::NTuple{D,Int}; init=noth
   @show maxlinkdim(u)
   k_u² = @show -inner(u', A, u) / inner(u, u)
   @show -k_u² / (2π), -sum(k⃗ .^ 2) * xstep^2 / (2π)
-  display(UnicodePlots.heatmap(mps_to_discrete_function(u, fill_tuple(10, D); maxdim=last(solver_kwargs.maxdim))))
+  display(
+    UnicodePlots.heatmap(
+      mps_to_discrete_function(u, fill_tuple(10, D); maxdim=last(solver_kwargs.maxdim))
+    ),
+  )
 
   @show integrate_mps(u)
 
@@ -155,7 +150,9 @@ root_dir = "$(ENV["HOME"])/workdir/ITensorQTT.jl/helmholtz_solver"
 results_dir = joinpath(root_dir, "results")
 helmholtz_solver_run(nks, Dict([nk => (nk + 2):(nk + 13) for nk in nks]); results_dir)
 """
-function helmholtz_solver_run(nks::Vector{Int}, ns::Dict{Int}; results_dir, multigrid=true, solver_kwargs=(;))
+function helmholtz_solver_run(
+  nks::Vector{Int}, ns::Dict{Int}; results_dir, multigrid=true, solver_kwargs=(;)
+)
   if !isdir(results_dir)
     @warn "Making the directory path $(results_dir)"
     mkpath(results_dir)
@@ -192,7 +189,13 @@ root_dir = "$(ENV["HOME"])/workdir/ITensorQTT.jl/helmholtz_nd_solver"
 results_dir = joinpath(root_dir, "results")
 helmholtz_solver_run(n⃗ₖs, Dict([n⃗ₖ => (maximum(n⃗ₖ) + 2):(maximum(n⃗ₖ) + 13) for n⃗ₖ in n⃗ₖs]); results_dir, solver_kwargs=(; maxdim=4, nsweeps=10))
 """
-function helmholtz_solver_run(n⃗ₖs::Vector{NTuple{D,Int}}, n⃗s::Dict{NTuple{D,Int}}; results_dir, multigrid=true, solver_kwargs=(;)) where {D}
+function helmholtz_solver_run(
+  n⃗ₖs::Vector{NTuple{D,Int}},
+  n⃗s::Dict{NTuple{D,Int}};
+  results_dir,
+  multigrid=true,
+  solver_kwargs=(;),
+) where {D}
   if !isdir(results_dir)
     @warn "Making the directory path $(results_dir)"
     mkpath(results_dir)
@@ -319,7 +322,7 @@ function helmholtz_solver_analyze(nks, ns; results_dir, plots_dir)
       α, β = rescale(xi, xf, x̃i, x̃f)
       u_exact = qtt(sin, α * k, β, s)
       @show nk, n
-      @show 2^((n - 1)/ 2)
+      @show 2^((n - 1) / 2)
 
       @show sign(inner(u, u_exact))
       u *= real(sign(inner(u, u_exact)))
@@ -405,23 +408,38 @@ function helmholtz_solver_analyze(nks, ns; results_dir, plots_dir)
     legendfontsize,
   )
   for nk in nks
-    plot!(plot_error_variances, 2 .^ ns[nk], abs.(error_variances[nk]);
+    plot!(
+      plot_error_variances,
+      2 .^ ns[nk],
+      abs.(error_variances[nk]);
       label="k=2π * 10^$(round(nk * log10(2); digits=2))",
       linewidth=3,
     )
-    plot!(plot_error_eigvals, 2 .^ ns[nk], abs.(error_eigvals[nk]);
+    plot!(
+      plot_error_eigvals,
+      2 .^ ns[nk],
+      abs.(error_eigvals[nk]);
       label="k=2π * 10^$(round(nk * log10(2); digits=2))",
       linewidth=3,
     )
-    plot!(plot_error_diffs, 2 .^ ns[nk], abs.(error_diffs[nk]);
+    plot!(
+      plot_error_diffs,
+      2 .^ ns[nk],
+      abs.(error_diffs[nk]);
       label="k=2π * 10^$(round(nk * log10(2); digits=2))",
       linewidth=3,
     )
-    plot!(plot_maxlinkdims, 2 .^ ns[nk], maxlinkdims[nk];
+    plot!(
+      plot_maxlinkdims,
+      2 .^ ns[nk],
+      maxlinkdims[nk];
       label="k=2π * 10^$(round(nk * log10(2); digits=2))",
       linewidth=3,
     )
-    plot!(plot_time, 2 .^ ns[nk], solve_times[nk];
+    plot!(
+      plot_time,
+      2 .^ ns[nk],
+      solve_times[nk];
       label="k=2π * 10^$(round(nk * log10(2); digits=2))",
       linewidth=3,
     )
@@ -443,7 +461,9 @@ root_dir = "$(ENV["HOME"])/workdir/ITensorQTT.jl/helmholtz_solver"
 results_dir = joinpath(root_dir, "results")
 helmholtz_solver_visualize_solution(nk, n, 0.75, -1; results_dir, plots_dir)
 """
-function helmholtz_solver_visualize_solution(; nk::Int, n::Int, xstart::Float64, zoom::Int=0, kwargs...)
+function helmholtz_solver_visualize_solution(;
+  nk::Int, n::Int, xstart::Float64, zoom::Int=0, kwargs...
+)
   # nzoom is the zoom level relative to the length scale `nk`
   nproj = nk + zoom
 
@@ -459,7 +479,9 @@ function helmholtz_solver_visualize_solution(; nk::Int, n::Int, xstart::Float64,
   return helmholtz_solver_visualize_solution(nk, n, proj; kwargs...)
 end
 
-function helmholtz_solver_visualize_solution(nk::Int, n::Int, proj::Vector{Int}; results_dir, nplot=min(8, n))
+function helmholtz_solver_visualize_solution(
+  nk::Int, n::Int, proj::Vector{Int}; results_dir, nplot=min(8, n)
+)
   nplot = min(n, nplot)
 
   if nplot + length(proj) > n
@@ -555,7 +577,9 @@ function helmholtz_solver_plot_solutions(nks, ns, xstarts, zoom; results_dir, pl
         legendfontsize,
       )
       for n in ns
-        (; xrange, u_vec, u_exact_vec) = helmholtz_solver_visualize_solution(; nk, n, xstart, zoom, results_dir)
+        (; xrange, u_vec, u_exact_vec) = helmholtz_solver_visualize_solution(;
+          nk, n, xstart, zoom, results_dir
+        )
 
         # Plot the original functions
         plot_u = plot(;
@@ -571,23 +595,32 @@ function helmholtz_solver_plot_solutions(nks, ns, xstarts, zoom; results_dir, pl
           yguidefontsize=labelfontsize,
           legendfontsize,
         )
-        plot!(plot_u, xrange, u_vec;
-          label="QTT solution",
-          linewidth=3,
+        plot!(plot_u, xrange, u_vec; label="QTT solution", linewidth=3)
+        plot!(plot_u, xrange, u_exact_vec; label="sin(kx)", linewidth=3)
+        Plots.savefig(
+          plot_u,
+          joinpath(
+            plots_dir,
+            "helmholtz_visualize_nk_$(nk)_n_$(n)_xstart_$(xstart)_zoom_$(zoom)_qtt.pdf",
+          ),
         )
-        plot!(plot_u, xrange, u_exact_vec;
-          label="sin(kx)",
-          linewidth=3,
-        )
-        Plots.savefig(plot_u, joinpath(plots_dir, "helmholtz_visualize_nk_$(nk)_n_$(n)_xstart_$(xstart)_zoom_$(zoom)_qtt.pdf"))
 
         # Plot the error
-        plot!(plot_u_diff, xrange, abs.(u_vec - u_exact_vec);
+        plot!(
+          plot_u_diff,
+          xrange,
+          abs.(u_vec - u_exact_vec);
           label="2^$n gridpoints",
           linewidth=3,
         )
       end
-      Plots.savefig(plot_u_diff, joinpath(plots_dir, "helmholtz_visualize_nk_$(nk)_ns_$(ns)_xstart_$(xstart)_zoom_$(zoom)_diff.pdf"))
+      Plots.savefig(
+        plot_u_diff,
+        joinpath(
+          plots_dir,
+          "helmholtz_visualize_nk_$(nk)_ns_$(ns)_xstart_$(xstart)_zoom_$(zoom)_diff.pdf",
+        ),
+      )
     end
   end
 end
@@ -632,7 +665,7 @@ function helmholtz_solver_visualize_solution(
   x⃗::Tuple,
   n⃗zoom::NTuple{D,Int};
   results_dir,
-  plots_dir
+  plots_dir,
 ) where {D}
   if !isdir(plots_dir)
     @warn "Making the directory path $(plots_dir)"
@@ -655,7 +688,7 @@ function helmholtz_solver_visualize_solution(
   u .*= √2
 
   plot_u = Plots.heatmap(;
-     title="Helmholtz solution, k = 2π(2^$(n⃗ₖ[1]), 2^$(n⃗ₖ[2])), N = (2^$(n⃗[1]), 2^$(n⃗[2]))",
+    title="Helmholtz solution, k = 2π(2^$(n⃗ₖ[1]), 2^$(n⃗ₖ[2])), N = (2^$(n⃗[1]), 2^$(n⃗[2]))",
     legend=:topleft,
     linewidth=3,
     xlabel="x",
@@ -691,5 +724,10 @@ function helmholtz_solver_visualize_solution(
 
   plot!(plot_u, x⃗range..., u_array)
 
-  Plots.savefig(plot_u, joinpath(plots_dir, "helmholtz_nd_visualize_nk_$(n⃗ₖ)_n_$(n⃗)_x_$(x⃗)_zoom_$(n⃗zoom).pdf"))
+  return Plots.savefig(
+    plot_u,
+    joinpath(
+      plots_dir, "helmholtz_nd_visualize_nk_$(n⃗ₖ)_n_$(n⃗)_x_$(x⃗)_zoom_$(n⃗zoom).pdf"
+    ),
+  )
 end

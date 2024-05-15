@@ -1,3 +1,5 @@
+using ITensorMPS: MPO, apply
+
 """
     qft(n::Int; inverse::Bool = false)
 
@@ -33,7 +35,7 @@ end
 function dft_matrix(n::Int)
   N = 2^n
   ω = exp(-2π * im / N)
-  return [ω^(j * k) / √N for j in 0:(N-1), k in 0:(N-1)]
+  return [ω^(j * k) / √N for j in 0:(N - 1), k in 0:(N - 1)]
 end
 
 function dft_mpo(s::Vector{<:Index}; alg="mpo", kwargs...)
@@ -56,10 +58,10 @@ function phase_mpo(s::Vector{<:Index})
   U[1] = δ(s[1], s[1]', l[1])
   for j in 2:(n - 1)
     U[j] = op("I", s[j]) * onehot(l[j - 1] => 1, l[j] => 1)
-    U[j] += op("Phase", s[j]; ϕ=-π/2^(j - 1)) * onehot(l[j - 1] => 2, l[j] => 2)
+    U[j] += op("Phase", s[j]; ϕ=-π / 2^(j - 1)) * onehot(l[j - 1] => 2, l[j] => 2)
   end
   U[n] = op("I", s[n]) * onehot(l[n - 1] => 1)
-  U[n] += op("Phase", s[n]; ϕ=-π/2^(n - 1)) * onehot(l[n - 1] => 2)
+  U[n] += op("Phase", s[n]; ϕ=-π / 2^(n - 1)) * onehot(l[n - 1] => 2)
   return U
 end
 
@@ -98,13 +100,21 @@ end
 
 # Discrete Fourier transform MPO from QFT circuit
 # Faster to use `alg="mpo"`, not recommended.
-function dft_mpo(::Algorithm"circuit", s::Vector{<:Index};
+function dft_mpo(
+  ::Algorithm"circuit",
+  s::Vector{<:Index};
   inverse::Bool=false,
   cutoff=1e-15,
   move_sites_back_between_gates=true,
   move_sites_back=true,
 )
-  U = apply(dft_circuit(s; inverse), MPO(s, "I"); cutoff, move_sites_back_between_gates, move_sites_back)
+  U = apply(
+    dft_circuit(s; inverse),
+    MPO(s, "I");
+    cutoff,
+    move_sites_back_between_gates,
+    move_sites_back,
+  )
   return reverse_output_bits(U)
 end
 

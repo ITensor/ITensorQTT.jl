@@ -8,7 +8,7 @@
 # h = (xstop - xstart) / 2^n
 # xrange = [xstart + j * h for j in 0:(2^n - 1)]
 function qtt_xrange(n::Int, xstart, xstop)
-  return range(; start=xstart, stop=xstop, length=(2^n + 1))[1:2^n]
+  return range(; start=xstart, stop=xstop, length=(2^n + 1))[1:(2^n)]
 end
 
 function qtt_xrange(s::Vector{<:Index}, xstart, xstop)
@@ -19,18 +19,34 @@ function qtt_xrange(u::MPS, xstart, xstop)
   return qtt_xrange(length(u), xstart, xstop)
 end
 
-function function_to_mps(f::Function, s::Vector{<:Index}, xstart, xstop; alg="factorize", kwargs...)
+function function_to_mps(
+  f::Function, s::Vector{<:Index}, xstart, xstop; alg="factorize", kwargs...
+)
   return function_to_mps(Algorithm(alg), f, s, xstart, xstop; kwargs...)
 end
 
 # TODO: generalize to n-dimensional functions
-function function_to_mps(f::Tuple{Vararg{Function}}, s::Tuple{Vararg{Vector{<:Index}}}, xstart::Tuple{Vararg{Number}}, xstop::Tuple{Vararg{Number}}; kwargs...)
+function function_to_mps(
+  f::Tuple{Vararg{Function}},
+  s::Tuple{Vararg{Vector{<:Index}}},
+  xstart::Tuple{Vararg{Number}},
+  xstop::Tuple{Vararg{Number}};
+  kwargs...,
+)
   @assert allequal(length.(s)) #all(==(length(first(s))), length.(s))
   ψ = function_to_mps.(f, s, xstart, xstop; kwargs...)
   return interleave(ψ...)
 end
 
-function function_to_mps(::Algorithm"factorize", f::Function, s::Vector{<:Index}, xstart, xstop; cutoff=1e-15, kwargs...)
+function function_to_mps(
+  ::Algorithm"factorize",
+  f::Function,
+  s::Vector{<:Index},
+  xstart,
+  xstop;
+  cutoff=1e-15,
+  kwargs...,
+)
   x = qtt_xrange(s, xstart, xstop)
   return vec_to_mps(f.(x), s; cutoff, kwargs...)
 end
@@ -44,7 +60,7 @@ function polynomial_tensor(j, κ)
   end
   for β in 2:(κ + 1)
     for α in 1:(β - 1)
-      Q[α, β, 2] = binomial(β - 1, α - 1) * 2.0 ^ (-(β - α) * j)
+      Q[α, β, 2] = binomial(β - 1, α - 1) * 2.0^(-(β - α) * j)
     end
   end
   return Q
@@ -52,7 +68,16 @@ end
 
 # https://arxiv.org/abs/1802.07259
 # Approximate a function by a polynomial and then turn into an MPS
-function function_to_mps(::Algorithm"polynomial", f::Function, s::Vector{<:Index}, xstart, xstop; cutoff=1e-15, degree, length=2^(length(s)))
+function function_to_mps(
+  ::Algorithm"polynomial",
+  f::Function,
+  s::Vector{<:Index},
+  xstart,
+  xstop;
+  cutoff=1e-15,
+  degree,
+  length=2^(length(s)),
+)
   xrange = range(; start=xstart, stop=xstop, length=(length + 1))[1:length]
   # ∑{l=0…κ} cₗ xˡ, polynomial of degree κ
   c = coeffs(fit(xrange, f.(xrange), degree))
@@ -74,26 +99,30 @@ end
 # as an MPS with `L` site indices.
 # The function is discretized on a grid with `N = 2^L` points.
 # Using recursive/multiscale method from Miles' tensor meeting notes
-function function_to_mps(::Algorithm"recursive", f::Function, s::Vector{<:Index}, xstart, xstop; cutoff=1e-15)
+function function_to_mps(
+  ::Algorithm"recursive", f::Function, s::Vector{<:Index}, xstart, xstop; cutoff=1e-15
+)
   L = length(s)
-  N = 2 ^ L
+  N = 2^L
   h = 1 / N
-  x = range(; start=xstart, stop=xstop, step=h)[1:end-1]
+  x = range(; start=xstart, stop=xstop, step=h)[1:(end - 1)]
   @assert length(x) == N
   # Start by making `L - 2` MPS of length `2`, the full basis
   # on sites `[s[L-1], s[L]]`.
   ranges = collect(Iterators.partition(1:N, 4))
   l = 2 # length of the MPS
-  ψ = Vector{MPS}(undef, 2 ^ (L - l))
+  ψ = Vector{MPS}(undef, 2^(L - l))
   for j in eachindex(ranges)
     range = ranges[j]
     Aⱼ = [f(x[range[1]]) f(x[range[2]]); f(x[range[3]]) f(x[range[4]])]
     ψ[j] = MPS(Aⱼ, [s[L - 1], s[L]]; cutoff)
   end
   for l in (l + 1):L
-    ψ̃ = Vector{MPS}(undef, 2 ^ (L - l))
-    for j in 1:(2 ^ (L - l))
-      ψ̃[j] = +([onehot(s[L - l + 1] => 1); ψ[2j - 1]], [onehot(s[L - l + 1] => 2); ψ[2j]]; cutoff)
+    ψ̃ = Vector{MPS}(undef, 2^(L - l))
+    for j in 1:(2^(L - l))
+      ψ̃[j] = +(
+        [onehot(s[L - l + 1] => 1); ψ[2j - 1]], [onehot(s[L - l + 1] => 2); ψ[2j]]; cutoff
+      )
     end
     ψ = ψ̃
   end
@@ -128,7 +157,9 @@ function mps_to_discrete_function(ψ::MPS, nbits::Tuple{Vararg{Integer}}; kwargs
   return mps_to_discrete_function(Val(ndims), ψ)
 end
 
-function mps_to_discrete_function(::Val{ndims}, ψ::MPS, nbits::Integer; kwargs...) where {ndims}
+function mps_to_discrete_function(
+  ::Val{ndims}, ψ::MPS, nbits::Integer; kwargs...
+) where {ndims}
   return mps_to_discrete_function(ψ, ntuple(Returns(nbits), Val(ndims)))
 end
 
@@ -163,8 +194,8 @@ end
 function mat_to_mpo(m, s; kwargs...)
   n = length(s)
   t = reshape(Matrix(m), fill(2, 2n)...)
-  t = permutedims(t, [n:-1:1; 2n:-1:(n + 1)])
-  t = permutedims(t, [1:n (n + 1):2n]'[:])
+  t = permutedims(t, [n:-1:1; (2n):-1:(n + 1)])
+  t = permutedims(t, [1:n (n + 1):(2n)]'[:])
   s_mpo = [[s[n], s[n]'] for n in 1:length(s)]
   return MPO(t, s_mpo; kwargs...)
 end
