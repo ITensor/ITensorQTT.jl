@@ -1,4 +1,5 @@
 using ITensors
+using ITensorMPS
 using ITensorQTT
 using SpecialFunctions
 using LinearAlgebra
