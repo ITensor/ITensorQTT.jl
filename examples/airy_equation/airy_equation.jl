@@ -400,7 +400,7 @@ function airy_solver(;
   if isnothing(init)
     Random.seed!(seed)
     s = siteinds("Qubit", n)
-    init = randomMPS(s; linkdims=10)
+    init = random_mps(s; linkdims=10)
   else
     s = siteinds(init)
     ## init = replace_siteinds(init, s[1:length(init)])

@@ -37,7 +37,7 @@ function helmholtz_solver(nk::Int, n::Int; init=nothing, solver_kwargs=(;))
 
   if isnothing(init)
     s = siteinds("Qubit", n)
-    init = randomMPS(s)
+    init = random_mps(s)
   else
     s = siteinds(init)
   end
@@ -111,7 +111,7 @@ function helmholtz_solver(n⃗ₖ::NTuple{D,Int}, n⃗::NTuple{D,Int}; init=noth
 
   if isnothing(init)
     s⃗ = siteinds.("Qubit", n⃗)
-    init = interleave(randomMPS.(s⃗)...)
+    init = interleave(random_mps.(s⃗)...)
   else
     s⃗ = siteinds_per_dimension(Val(D), init)
   end

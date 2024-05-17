@@ -8,8 +8,8 @@ using FFTW
   @testset "MPS vcat" begin
     n = 4
     s = siteinds("S=1/2", n)
-    ψ = randomMPS(s[1:end-1])
-    A = randomITensor(s[end])
+    ψ = random_mps(s[1:end-1])
+    A = random_itensor(s[end])
     @test [A; ψ] isa MPS
     @test [ψ; A] isa MPS
     @test [MPS([A]); ψ] isa MPS
@@ -25,8 +25,8 @@ using FFTW
   @testset "MPS interleave" begin
     n = 3
     s = siteinds("S=1/2", n)
-    ψ = randomMPS(s)
-    ϕ = randomMPS(s)
+    ψ = random_mps(s)
+    ϕ = random_mps(s)
     ρ = ITensorQTT.interleave(ψ, ϕ)
     @test length(ρ) == 2n
     @test contract(ψ) * contract(ϕ) ≈ contract(ρ)
