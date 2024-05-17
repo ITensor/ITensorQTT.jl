@@ -22,12 +22,16 @@ function project_bits(ψ::MPS, bits::Tuple{Vararg{Vector}})
   return project_bits(ψ, interleave(bits...))
 end
 
-function project_bits(u::MPS, left_bits::Tuple{Vararg{Vector{Int}}}, right_bits::Tuple{Vararg{Vector{Int}}})
+function project_bits(
+  u::MPS, left_bits::Tuple{Vararg{Vector{Int}}}, right_bits::Tuple{Vararg{Vector{Int}}}
+)
   u = project_bits(u, left_bits)
   return reverse(project_bits(reverse(u), reverse.(right_bits)))
 end
 
-function project_bits(u::MPS, left_bits::Tuple{Vararg{Vector{Int}}}, nright_bits::Tuple{Vararg{Int}})
+function project_bits(
+  u::MPS, left_bits::Tuple{Vararg{Vector{Int}}}, nright_bits::Tuple{Vararg{Int}}
+)
   return project_bits(u, left_bits, fill.(0, nright_bits))
 end
 

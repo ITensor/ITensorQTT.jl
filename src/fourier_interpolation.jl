@@ -6,7 +6,7 @@ function fourier_interpolation(ψ::MPS, s_interp::Vector{<:Index}; cutoff=1e-15)
   ℱψ0s = [[onehot.(s_interp .=> "0"); onehot(s[1] => "0")]; ℱψ0]
   ℱψ1s = [[onehot.(s_interp .=> "1"); onehot(s[1] => "1")]; ℱψ1]
   ℱψ_interp = +(ℱψ0s, ℱψ1s; cutoff=1e-15)
-  return apply_idft_mpo(ℱψ_interp; cutoff) * 2^(length(s_interp)/2)
+  return apply_idft_mpo(ℱψ_interp; cutoff) * 2^(length(s_interp) / 2)
 end
 
 """
@@ -27,7 +27,7 @@ function repeat_function(ψ::MPS, sₖ::Vector{<:Index}; cutoff=1e-15)
   sₙ₊ₖ = [sₖ; s]
   ℱψₖ = iszero(k) ? MPS(ITensor[]) : MPS(sₖ, "0")
   ℱψₙ₊ₖ = [ℱψ; ℱψₖ]
-  return apply_idft_mpo(ℱψₙ₊ₖ; cutoff) * 2^(length(sₖ)/2)
+  return apply_idft_mpo(ℱψₙ₊ₖ; cutoff) * 2^(length(sₖ) / 2)
 end
 
 """

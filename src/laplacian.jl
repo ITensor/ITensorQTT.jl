@@ -10,7 +10,7 @@ function laplacian_matrix(xlength, xstep=1.0)
   a = fill(-2.0, xlength)
   b = fill(1.0, xlength - 1)
   A = SymTridiagonal(a, b)
-  return A / (xstep ^ 2)
+  return A / (xstep^2)
 end
 
 # https://arxiv.org/abs/1802.07259
@@ -39,13 +39,17 @@ function laplacian_mpo(s::Vector{<:Index}, xstep=1.0)
   Tᴸ⁺¹[2] = 1.0
   Tᴸ⁺¹[3] = 1.0
   T⃗[L] *= Tᴸ⁺¹
-  return MPO(T⃗) ./ (xstep ^ (2 / L))
+  return MPO(T⃗) ./ (xstep^(2 / L))
 end
 
-function laplacian_mpo(s::Tuple{Vector{<:Index},Vector{<:Index}}, xstep::Tuple{Number,Number}=(1.0, 1.0))
+function laplacian_mpo(
+  s::Tuple{Vector{<:Index},Vector{<:Index}}, xstep::Tuple{Number,Number}=(1.0, 1.0)
+)
   Δ₁ = interleave(laplacian_mpo(s[1], xstep[1]), MPO(s[2], "I"))
   Δ₂ = interleave(MPO(s[1], "I"), laplacian_mpo(s[2], xstep[2]))
-  return convert(MPO, +(insert_missing_links(Δ₁), insert_missing_links(Δ₂); alg="directsum"))
+  return convert(
+    MPO, +(insert_missing_links(Δ₁), insert_missing_links(Δ₂); alg="directsum")
+  )
 end
 
 #
@@ -100,5 +104,5 @@ s_minus_mpo(s) = s_generic_mpo(s_minus_itensor, s)
 # Δ = ∇² = (Ŝ⁺ + Ŝ⁻ - 2I)
 function laplacian_mpo_approx(s, xstep=1.0; cutoff=1e-15)
   A = +(s_plus_mpo(s), s_minus_mpo(s), -2 * MPO(s, "I"); cutoff)
-  return A ./ (xstep ^ (2 / L))
+  return A ./ (xstep^(2 / L))
 end

@@ -1,4 +1,5 @@
 using ITensors
+using ITensorMPS
 using ITensorQTT
 using FFTW
 using UnicodePlots
@@ -18,7 +19,7 @@ display(lineplot(real(mps_to_discrete_function(ℱψ)); title="real(ℱψ)"))
 display(lineplot(imag(mps_to_discrete_function(ℱψ)); title="real(ℱψ)"))
 display(lineplot(real(mps_to_discrete_function(ℱ⁻¹ℱψ)); title="real(ℱ⁻¹ℱψ)"))
 
-@show norm(fft(mps_to_discrete_function(ψ)) / 2^(n/2) - mps_to_discrete_function(ℱψ))
+@show norm(fft(mps_to_discrete_function(ψ)) / 2^(n / 2) - mps_to_discrete_function(ℱψ))
 @show norm(ℱ⁻¹ℱψ - ψ)
 
 k = 3

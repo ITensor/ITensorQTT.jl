@@ -1,4 +1,4 @@
-number_of_zeros(v) = count(j -> sign(v[j]) ≠ sign(v[j+1]), 1:(length(v)-1))
+number_of_zeros(v) = count(j -> sign(v[j]) ≠ sign(v[j + 1]), 1:(length(v) - 1))
 
 linreg(x, y) = [fill!(similar(x), 1);; x] \ y
 

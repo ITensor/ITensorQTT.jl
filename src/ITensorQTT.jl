@@ -2,7 +2,6 @@ module ITensorQTT
 
 using LinearAlgebra # SymTridiagonal
 using ITensors
-using ITensorTDVP
 using Polynomials
 using KrylovKit
 
@@ -38,7 +37,6 @@ export function_to_mps,
   sample_bits,
   project_bits,
   dmrg_target,
-  linsolve,
   b_linsolve,
   interleave,
   boundary_value_mps,

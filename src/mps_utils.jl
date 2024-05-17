@@ -2,7 +2,9 @@ normalized_inner(x, y) = inner(x, y) / (norm(x) * norm(y))
 
 # TODO: Move to ITensors.jl
 using ITensors: AbstractMPS
-Base.vcat(ψ₁::MPST, ψ₂::MPST) where {MPST<:AbstractMPS} = MPST([ITensors.data(ψ₁); ITensors.data(ψ₂)])
+function Base.vcat(ψ₁::MPST, ψ₂::MPST) where {MPST<:AbstractMPS}
+  return MPST([ITensors.data(ψ₁); ITensors.data(ψ₂)])
+end
 Base.vcat(a::ITensor, ψ::AbstractMPS) = [typeof(ψ)([a]); ψ]
 Base.vcat(a::Vector{ITensor}, ψ::AbstractMPS) = [typeof(ψ)(a); ψ]
 Base.vcat(ψ::AbstractMPS, a::ITensor) = [ψ; typeof(ψ)([a])]
@@ -57,12 +59,14 @@ function interleave(ψ₁::AbstractMPS, ψ₂::AbstractMPS)
   ψ̃₁ = [insert_identity_links(ψ₁); ITensor(1.0)]
   ψ̃₂ = [ITensor(1.0); insert_identity_links(ψ₂)]
   ψ̃ = typeof(ψ₁)(2n)
-  for j in 1:2n
+  for j in 1:(2n)
     ψ̃[j] = ψ̃₁[j] * ψ̃₂[j]
   end
   return combine_linkinds(ψ̃)
 end
-interleave(ψ₁::AbstractMPS, ψ₂::AbstractMPS, ψ₃::AbstractMPS, ψ::AbstractMPS...) = error("Not implemented")
+function interleave(ψ₁::AbstractMPS, ψ₂::AbstractMPS, ψ₃::AbstractMPS, ψ::AbstractMPS...)
+  return error("Not implemented")
+end
 interleave(ψ::AbstractMPS) = ψ
 
 function interleave(x::Vector{T}, y::Vector{T}) where {T}

@@ -25,7 +25,7 @@ for j in eachindex(ns)
   println()
 
   n = ns[j]
-  (; u, xⁱ, α, β, time)  = load_airy_results(; dirname=results_dirname, xᶠ, n)
+  (; u, xⁱ, α, β, time) = load_airy_results(; dirname=results_dirname, xᶠ, n)
 
   N = 2^n
   h = (xᶠ - xⁱ) / (N - 1)
@@ -67,8 +67,25 @@ for j in eachindex(ns)
 end
 
 xlabel = "log10(sites)"
-display(lineplot(ns * log10(2), log10.(norm_errors); title="Norm error", xlabel, ylabel="log10(norm difference)"))
-display(lineplot(ns * log10(2), log10.(max_errors); title="Maximum elementwise error", xlabel, ylabel="log10(maximum difference)"))
+display(
+  lineplot(
+    ns * log10(2),
+    log10.(norm_errors);
+    title="Norm error",
+    xlabel,
+    ylabel="log10(norm difference)",
+  ),
+)
+display(
+  lineplot(
+    ns * log10(2),
+    log10.(max_errors);
+    title="Maximum elementwise error",
+    xlabel,
+    ylabel="log10(maximum difference)",
+  ),
+)
 display(lineplot(ns * log10(2), times; title="Time", xlabel, ylabel="Time (seconds)"))
-display(lineplot(ns * log10(2), maxlinkdim.(us); title="Time", xlabel, ylabel="Maximum rank"))
-
+display(
+  lineplot(ns * log10(2), maxlinkdim.(us); title="Time", xlabel, ylabel="Maximum rank")
+)

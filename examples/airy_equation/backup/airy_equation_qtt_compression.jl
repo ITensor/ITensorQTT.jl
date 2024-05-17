@@ -40,7 +40,10 @@ function airy_qtt_compression_get_results(nxfs, ns; results_dir, α, β, cutoff=
     @time for n in ns
       @show n
       results = @time airy_qtt_error(n, 1.0, 2^nxf; α, β, cutoff)
-      jldsave(joinpath(results_dir, "airy_qtt_compression_xi_1.0_xf_2^$(nxf)_n_$(n).jld2"); results)
+      jldsave(
+        joinpath(results_dir, "airy_qtt_compression_xi_1.0_xf_2^$(nxf)_n_$(n).jld2");
+        results,
+      )
     end
   end
 end
@@ -88,11 +91,14 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir)
     norm_errors = Float64[]
     airy_errors = Float64[]
     for n in ns[nxf]
-      results = load(joinpath(results_dir, "airy_qtt_compression_xi_1.0_xf_2^$(nxf)_n_$(n).jld2"), "results")
+      results = load(
+        joinpath(results_dir, "airy_qtt_compression_xi_1.0_xf_2^$(nxf)_n_$(n).jld2"),
+        "results",
+      )
       xi = results.xi
       xf = results.xf
       u = results.u
-      
+
       # Save maximum the rank of the QTT
       push!(maxlinkdims_nxf, maxlinkdim(u))
 
@@ -113,27 +119,21 @@ function airy_qtt_compression_plot_results(nxfs, ns; results_dir, plots_dir)
       push!(airy_errors, linsolve_error(A, u, b))
     end
     push!(maxlinkdims, last(maxlinkdims_nxf))
-    plot!(plot_norm_error, 2 .^ ns[nxf], norm_errors;
-          label="xf=$(2^nxf)",
-          linewidth=3,
-         )
-    plot!(plot_airy_error, 2 .^ ns[nxf], airy_errors;
-          label="xf=$(2^nxf)",
-          linewidth=3,
-         )
+    plot!(plot_norm_error, 2 .^ ns[nxf], norm_errors; label="xf=$(2^nxf)", linewidth=3)
+    plot!(plot_airy_error, 2 .^ ns[nxf], airy_errors; label="xf=$(2^nxf)", linewidth=3)
   end
   x = 2 .^ nxfs
   a, b = linreg(nxfs * log10(2), log10.(maxlinkdims))
-  plot!(plot_maxlinkdim, x, maxlinkdims;
-        label="Maximum QTT rank",
-        linewidth=3,
-       )
-  plot!(plot_maxlinkdim, x, 10 ^ a * x .^ b;
-        label="Best fit: $(round(10^a; digits=2)) xf ^ $(round(b; digits=2))",
-        linewidth=3,
-        linestyle=:dash,
-       )
+  plot!(plot_maxlinkdim, x, maxlinkdims; label="Maximum QTT rank", linewidth=3)
+  plot!(
+    plot_maxlinkdim,
+    x,
+    10^a * x .^ b;
+    label="Best fit: $(round(10^a; digits=2)) xf ^ $(round(b; digits=2))",
+    linewidth=3,
+    linestyle=:dash,
+  )
   savefig(plot_maxlinkdim, joinpath(plots_dir, "plot_maxlinkdim.png"))
   savefig(plot_norm_error, joinpath(plots_dir, "plot_norm_error.png"))
-  savefig(plot_airy_error, joinpath(plots_dir, "plot_airy_error.png"))
+  return savefig(plot_airy_error, joinpath(plots_dir, "plot_airy_error.png"))
 end
