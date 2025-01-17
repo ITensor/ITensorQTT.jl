@@ -16,7 +16,7 @@ f(x) = exp(-(x - x₀)^2 / σ^2)
 
 display(lineplot(mps_to_discrete_function(ψ); title="ψ"))
 display(lineplot(real(mps_to_discrete_function(ℱψ)); title="real(ℱψ)"))
-display(lineplot(imag(mps_to_discrete_function(ℱψ)); title="real(ℱψ)"))
+display(lineplot(imag(mps_to_discrete_function(ℱψ)); title="imag(ℱψ)"))
 display(lineplot(real(mps_to_discrete_function(ℱ⁻¹ℱψ)); title="real(ℱ⁻¹ℱψ)"))
 
 @show norm(fft(mps_to_discrete_function(ψ)) / 2^(n / 2) - mps_to_discrete_function(ℱψ))
